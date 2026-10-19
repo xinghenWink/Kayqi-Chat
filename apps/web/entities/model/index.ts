@@ -66,3 +66,5 @@ export {
 } from "@/entities/model/lib/native-tool-payload";
 export { parseKindsJSON, stringifyKinds } from "@/entities/model/model/llm-schema";
 export type { ModelSelectOption } from "@/entities/model/types/model-select";
+
+export { parseImageParameterPolicy, type ImageParameterPolicy } from "./lib/image-parameter-policy";

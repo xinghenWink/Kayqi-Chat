@@ -179,6 +179,7 @@ export type ChatAreaMessage = {
   // Effective reasoning effort level recorded by the backend; null when the model has no reasoning capability.
   reasoningEffort?: ReasoningEffortLevel | null;
   latencyMS?: number;
+  points?: import("@deeix/api-contract").MessagePointSummaryResponse;
   billingCost?: ChatBillingCost;
   knowledgeSources?: RAGCitation[];
   processTrace?: ChatMessageProcessTrace;

@@ -249,6 +249,7 @@ export type SendMessageRequest = Omit<ContractSendMessageRequest, "options" | "u
 };
 
 export type MediaImageRequest = {
+  quoteFingerprint?: string;
   prompt: string;
   model?: string;
   options?: ConversationOptions;

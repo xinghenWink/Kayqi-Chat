@@ -14,6 +14,9 @@ export type ViewerProfile = {
 };
 
 export type ChatModelOption = {
+  // 显式模式只用于客户端任务判定，不发送给上游。
+  composeMode?: "chat" | "image";
+  imageParameters?: import("@/features/chat/model/image-parameter-policy").ImageParameterPolicy | null;
   platformModelName: string;
   icon: string;
   vendor: string;

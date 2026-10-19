@@ -68,13 +68,15 @@ type uploadContentGate struct {
 
 // UploadFileInput 定义文件上传请求。
 type UploadFileInput struct {
-	UserID       uint
-	Ownership    FileOwnership
-	Purpose      string
-	FileName     string
-	MimeType     string
-	DeclaredSize int64
-	Reader       io.Reader
+	UserID    uint
+	Ownership FileOwnership
+	Purpose   string
+	// GenerationRunID 仅由服务端图片任务写入，暂存文件在结算提交前不可公开读取。
+	GenerationRunID string
+	FileName        string
+	MimeType        string
+	DeclaredSize    int64
+	Reader          io.Reader
 	// MaxBytes 非零时替代管理员配置的上传上限与按类型上限。
 	// 只用于平台生成的制品：上传上限约束的是用户提交的文件，不应限制模型输出。
 	MaxBytes int64
@@ -289,7 +291,7 @@ func (s *Service) UploadFile(ctx context.Context, input UploadFileInput) (*Uploa
 	}
 	defer releaseUploadGate()
 
-	if result, reused, reuseErr := s.tryReuseExistingFile(ctx, store, ownerUserID, shaValue, sizeBytes, quotaBytes); reuseErr != nil {
+	if result, reused, reuseErr := s.tryReuseExistingFileUnlessPending(ctx, input.GenerationRunID, store, ownerUserID, shaValue, sizeBytes, quotaBytes); reuseErr != nil {
 		removeUploadedObject(relativePath)
 		return nil, reuseErr
 	} else if reused {
@@ -301,6 +303,7 @@ func (s *Service) UploadFile(ctx context.Context, input UploadFileInput) (*Uploa
 		FileID:           fileID,
 		UserID:           ownerUserID,
 		Purpose:          normalizePurpose(input.Purpose),
+		GenerationRunID:  input.GenerationRunID,
 		FileName:         normalizedName,
 		MimeType:         normalizedMIME,
 		DetectedMIME:     detectedMIME,
@@ -317,9 +320,14 @@ func (s *Service) UploadFile(ctx context.Context, input UploadFileInput) (*Uploa
 		ExpiresAt:        nil,
 	}
 
+	if input.GenerationRunID != "" {
+		fileItem.ProcessingReady = true
+		fileItem.ProcessingStatus = "ready"
+		fileItem.RAGOptOut = true
+	}
 	quota, err := s.repo.CreateFileObjectAndConsumeQuota(ctx, fileItem, quotaBytes)
 	if err != nil && errors.Is(err, repository.ErrDuplicate) {
-		if result, reused, reuseErr := s.tryReuseExistingFile(ctx, store, ownerUserID, shaValue, sizeBytes, quotaBytes); reuseErr != nil {
+		if result, reused, reuseErr := s.tryReuseExistingFileUnlessPending(ctx, input.GenerationRunID, store, ownerUserID, shaValue, sizeBytes, quotaBytes); reuseErr != nil {
 			removeUploadedObject(relativePath)
 			return nil, reuseErr
 		} else if reused {
@@ -340,7 +348,10 @@ func (s *Service) UploadFile(ctx context.Context, input UploadFileInput) (*Uploa
 		return nil, err
 	}
 	initializeCtx, cancelInitialize := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
-	initErr := s.initializeUploadedFile(initializeCtx, fileItem)
+	var initErr error
+	if input.GenerationRunID == "" {
+		initErr = s.initializeUploadedFile(initializeCtx, fileItem)
+	}
 	cancelInitialize()
 	if initErr != nil {
 		if s.logger != nil {
@@ -398,6 +409,21 @@ func (s *Service) releaseUploadGate(key string, gate *uploadContentGate) {
 	if gate.users == 0 && s.uploadGates[key] == gate {
 		delete(s.uploadGates, key)
 	}
+}
+
+func (s *Service) tryReuseExistingFileUnlessPending(
+	ctx context.Context,
+	runID string,
+	store objectstorage.Store,
+	userID uint,
+	shaValue string,
+	sizeBytes int64,
+	quotaBytes int64,
+) (*UploadFileResult, bool, error) {
+	if runID != "" {
+		return nil, false, nil
+	}
+	return s.tryReuseExistingFile(ctx, store, userID, shaValue, sizeBytes, quotaBytes)
 }
 
 func (s *Service) tryReuseExistingFile(

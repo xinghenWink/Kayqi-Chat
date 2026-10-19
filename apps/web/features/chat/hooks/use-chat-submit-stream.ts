@@ -30,6 +30,7 @@ export function useChatSubmitStream({
   uiComponentIDs,
   htmlVisualPromptEnabled,
   options,
+  pointQuoteFingerprint,
   draft,
   attachments,
   maxFilesPerMessage,
@@ -77,6 +78,7 @@ export function useChatSubmitStream({
   uiComponentIDs: number[];
   htmlVisualPromptEnabled: boolean;
   options: ConversationOptions;
+  pointQuoteFingerprint?: string;
   draft: string;
   attachments: PendingAttachment[];
   maxFilesPerMessage: number;
@@ -129,6 +131,7 @@ export function useChatSubmitStream({
     uiComponentIDs,
     htmlVisualPromptEnabled,
     options,
+  pointQuoteFingerprint,
     draft,
     attachments,
     maxFilesPerMessage,

@@ -40,6 +40,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ChatKnowledgeBases } from "@/features/chat/components/sections/chat-knowledge-bases";
 import { ChatMCP } from "@/features/chat/components/sections/chat-mcp";
 import { ChatUIComponents } from "@/features/chat/components/sections/chat-ui-components";
+import { ChatModeSwitch } from "@/features/chat/components/sections/chat-mode-switch";
+import { ChatPointsSummary } from "@/features/chat/components/sections/chat-points-summary";
+import type { ChatComposeMode } from "@/features/chat/model/image-parameter-policy";
+import type { useChatPoints } from "@/features/chat/hooks/use-chat-points";
 import { ChatModelConfig } from "@/features/chat/components/sections/chat-model-config";
 import { ChatModelPicker } from "@/features/chat/components/sections/chat-model-picker";
 import { ChatModelControls } from "@/features/chat/components/sections/chat-model-controls";
@@ -112,6 +116,11 @@ type QueuedComposerMessage = {
 };
 
 type ChatInputProps = {
+  composeMode?: ChatComposeMode;
+  onComposeModeChange?: (mode: ChatComposeMode) => void;
+  imageAvailable?: boolean;
+  imagePointsRequired?: boolean;
+  imagePointState?: ReturnType<typeof useChatPoints>;
   draft: string;
   loading: boolean;
   sending: boolean;
@@ -210,6 +219,7 @@ function formatAttachmentMeta(fileName: string, sizeBytes: number) {
 }
 
 function ChatInputComponent({
+  composeMode, onComposeModeChange, imageAvailable = false, imagePointsRequired = false, imagePointState,
   draft,
   loading,
   sending,
@@ -317,7 +327,8 @@ function ChatInputComponent({
   const [inputGroupHeight, setInputGroupHeight] = React.useState<number | null>(null);
   const hasDraftText = draft.trim().length > 0;
   const hasSubmitContent = hasDraftText || attachments.length > 0;
-  const canSend = hasSubmitContent && !loading && !uploading;
+  const pointsReady = !imagePointsRequired || composeMode !== "image" || Boolean(imagePointState?.quote && imagePointState.wallet && imagePointState.wallet.totalPoints >= imagePointState.quote.totalPoints);
+  const canSend = hasSubmitContent && !loading && !uploading && pointsReady;
   const submitActionLabel = hasSubmitContent
     ? sending
       ? tComposer("queueMessage")
@@ -1109,8 +1120,10 @@ function ChatInputComponent({
             }}
           />
 
+          {composeMode === "image" && imagePointsRequired && imagePointState ? <ChatPointsSummary {...imagePointState} /> : null}
           <InputGroupAddon align="block-end" className="items-center justify-between pt-2">
             <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+              {composeMode && onComposeModeChange ? <ChatModeSwitch mode={composeMode} onChange={onComposeModeChange} imageAvailable={imageAvailable} disabled={loading || uploading} /> : null}
               <DropdownMenu
                   modal={false}
                   open={toolsMenuOpen}

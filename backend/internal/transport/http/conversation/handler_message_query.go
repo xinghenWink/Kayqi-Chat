@@ -383,7 +383,7 @@ func (h *Handler) GetConversationRunStatuses(c *gin.Context) {
 	}
 	statuses := make([]ConversationRunStatusResponse, 0, len(items))
 	for _, item := range items {
-		statuses = append(statuses, ConversationRunStatusResponse{
+		statuses = append(statuses, ConversationRunStatusResponse{Points: toRunPointSummary(item.Points),
 			RunID:  item.RunID,
 			Status: item.Status,
 		})

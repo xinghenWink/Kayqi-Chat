@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { FeatureGate } from "@/shared/capabilities";
 import { Database, Globe, Plus, Settings, ShieldCheck, ShieldX, Trash2, Upload, UserCheck, WalletCards } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -389,6 +391,7 @@ const UserTableRow = React.memo(function UserTableRow({
       <TableCell className="whitespace-nowrap text-muted-foreground">{formatDateTime(item.lastActiveAt || item.lastLoginAt, locale)}</TableCell>
       <TableCell className="w-[56px] py-1.5 whitespace-nowrap" stickyEnd>
         <div className="flex h-7 items-center justify-end">
+          <FeatureGate feature="billingGating"><Button size="icon-sm" variant="ghost" asChild title={t("points.title")}><Link href={`/admin/points?user_id=${item.id}`} aria-label={t("points.title")}><WalletCards className="size-3.5" /></Link></Button></FeatureGate>
           <Button
             type="button"
             size="icon-sm"

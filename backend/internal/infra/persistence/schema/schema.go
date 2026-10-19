@@ -13,6 +13,7 @@ import (
 // Models 返回应用使用的全部持久化 Gorm 模型。
 func Models() []any {
 	return []any{
+		&models.PointWallet{}, &models.PointTransaction{}, &models.PointDailyGrant{}, &models.PointReservation{}, &models.ImagePointPrice{},
 		&models.User{},
 		&models.UserContactVerification{},
 		&models.UserCredential{},

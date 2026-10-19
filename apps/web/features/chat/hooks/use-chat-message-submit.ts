@@ -84,6 +84,7 @@ export function useChatMessageSubmit({
   uiComponentIDs,
   htmlVisualPromptEnabled,
   options,
+  pointQuoteFingerprint,
   draft,
   attachments,
   maxFilesPerMessage,
@@ -138,6 +139,7 @@ export function useChatMessageSubmit({
   uiComponentIDs: number[];
   htmlVisualPromptEnabled: boolean;
   options: ConversationOptions;
+  pointQuoteFingerprint?: string;
   draft: string;
   attachments: PendingAttachment[];
   maxFilesPerMessage: number;
@@ -316,6 +318,7 @@ export function useChatMessageSubmit({
         modelOptions,
         selectedPlatformModelName,
         options,
+  pointQuoteFingerprint,
         selectedToolIDs,
         selectedSkills,
         selectedKnowledgeBaseIDs,
@@ -553,6 +556,7 @@ export function useChatMessageSubmit({
           clientRunID,
           content: payloadContent,
           options: plan.sanitizedOptions,
+          pointQuoteFingerprint: plan.pointQuoteFingerprint,
           effectiveAttachments,
           platformModelName,
           selectedToolIDs: plan.selectedToolIDs,
@@ -794,6 +798,7 @@ export function useChatMessageSubmit({
       onConversationRunFinished,
       onConversationRunStarted,
       options,
+  pointQuoteFingerprint,
       prependNewConversation,
       releaseAttachments,
       reload,
@@ -891,7 +896,9 @@ export function useChatMessageSubmit({
           content,
           attachments: currentAttachments,
           platformModelName: selectedPlatformModelName,
+          modelOption: modelOptions.find((model) => model.platformModelName === selectedPlatformModelName),
           options: sanitizeConversationOptions(options),
+          pointQuoteFingerprint,
           selectedToolIDs: selectedToolIDs.slice(),
           selectedSkills: selectedSkills.slice(),
           selectedKnowledgeBaseIDs: selectedKnowledgeBaseIDs.slice(),
@@ -906,6 +913,7 @@ export function useChatMessageSubmit({
     return true;
   }, [
     attachments,
+    modelOptions,
     currentLeafMessage?.publicID,
     currentLeafMessage?.isPending,
     currentLeafMessage?.isStreaming,
@@ -914,6 +922,7 @@ export function useChatMessageSubmit({
     draft,
     htmlVisualPromptEnabled,
     options,
+  pointQuoteFingerprint,
     selectedPlatformModelName,
     selectedSkills,
     selectedKnowledgeBaseIDs,

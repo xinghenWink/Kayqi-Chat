@@ -11,7 +11,7 @@ import { ChevronUp } from "@/components/animate-ui/icons/chevron-up";
 import { ChatMentionMenuPortal } from "@/features/chat/components/shared/chat-mention-menu";
 import { MessageAttachmentRow } from "@/features/chat/components/message/message-attachment";
 import { UserMessageMeta } from "@/features/chat/components/message/message-meta";
-import type { ChatAreaMessage, UserMessageEditMode } from "@/features/chat/types/messages";
+import type { ChatAreaMessage, MessageAttachment, UserMessageEditMode } from "@/features/chat/types/messages";
 import type { SendShortcut } from "@/features/settings";
 import {
   useChatMentionMenu,
@@ -45,6 +45,7 @@ type ChatMessageUserProps = {
   onCopy: () => void;
   copySucceeded?: boolean;
   readOnly?: boolean;
+  onEditImageAttachment?: (attachment: MessageAttachment, sourceModelName?: string) => void;
   attachmentContentLoader?: FileContentLoader;
   showBranchNavigator?: boolean;
   // Enter saves and regenerates, as the composer does, honouring the same user setting.
@@ -66,6 +67,7 @@ export function ChatMessageUser({
   copySucceeded = false,
   readOnly = false,
   attachmentContentLoader,
+  onEditImageAttachment,
   showBranchNavigator = true,
   sendShortcut = "enter",
   screenshotMeta,
@@ -300,6 +302,7 @@ export function ChatMessageUser({
     <div className="group/user-message flex min-w-0 max-w-full flex-col items-end gap-2">
       {item.attachments && item.attachments.length > 0 ? (
         <MessageAttachmentRow
+          onEditImage={!readOnly && onEditImageAttachment ? (attachment) => onEditImageAttachment(attachment, item.platformModelName) : undefined}
           attachments={item.attachments}
           loadContent={attachmentContentLoader}
           allowDownload={!readOnly}

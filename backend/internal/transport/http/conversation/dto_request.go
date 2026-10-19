@@ -192,6 +192,7 @@ type TemporaryChatHistoryMessage struct {
 
 // MediaImageRequest 图片生成/编辑请求。
 type MediaImageRequest struct {
+	QuoteFingerprint      string         `json:"quoteFingerprint,omitempty" binding:"omitempty,max=64"`
 	Prompt                string         `json:"prompt" binding:"required"`
 	Model                 string         `json:"model,omitempty" binding:"omitempty,max=128"`
 	Options               map[string]any `json:"options,omitempty"`

@@ -571,5 +571,19 @@
     "upstreamUnavailable": "无法连接服务商，请检查地址和协议。",
     "modelUnavailable": "该模型暂不可用，请检查自定义服务商设置或更换模型。",
     "duplicate": "该 API Key 已添加。"
+  },
+  "points": {
+    "disabled": "生图暂未开放",
+    "insufficient": "积分不足，请领取每日额度或联系管理员",
+    "price_missing": "此图片配置暂未定价，请更换配置或模型",
+    "price_changed": "价格或参数已更新，请重新选择后发送",
+    "quote_required": "请等待积分报价完成后重试",
+    "invalid_request": "当前图片配置不可用，请更换配置或模型",
+    "policy_invalid": "生图暂不可用，请联系管理员",
+    "request_conflict": "此任务已存在，请刷新查看结果",
+    "concurrent_limit": "图片生成繁忙，请稍后重试",
+    "unavailable": "暂时无法获取积分报价，请稍后重试",
+    "interrupted": "图片任务已中断，未交付部分已释放积分",
+    "not_found": "未找到该用户的积分账户"
   }
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -29,7 +30,8 @@ func TestOpenRouterPricingCacheStoreAndLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat cache: %v", err)
 	}
-	if info.Mode().Perm() != 0o644 {
+	// Windows 使用 ACL，不提供 POSIX 0644 模式语义。
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o644 {
 		t.Fatalf("cache permissions = %o, want 644", info.Mode().Perm())
 	}
 }

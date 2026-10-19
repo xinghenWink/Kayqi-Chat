@@ -3,6 +3,7 @@ package conversation
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -13,9 +14,11 @@ import (
 
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/channel"
 	appcm "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/contentmoderation"
+	apppoints "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/points"
 	appupload "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/upload"
 	domainbilling "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/billing"
 	model "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/conversation"
+	p "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/points"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/pkg/filetype"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/pkg/textutil"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/pkg/traceid"
@@ -52,6 +55,7 @@ type mediaImageCapabilities struct {
 
 // MediaImageInput 定义媒体图片任务的应用层入参。
 type MediaImageInput struct {
+	QuoteFingerprint      string
 	UserID                uint
 	ConversationID        uint
 	RequestID             string
@@ -75,6 +79,14 @@ type MediaImageInput struct {
 func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (result *SendMessageResult, retErr error) {
 	if input.TaskType != MediaImageTaskGeneration && input.TaskType != MediaImageTaskEdit {
 		return nil, ErrInvalidMediaGenerationTask
+	}
+	if s.pointsSvc != nil {
+		if _, err := s.pointsSvc.RequireActive(ctx); err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(input.ClientRunID) == "" {
+			return nil, p.ErrQuoteRequired
+		}
 	}
 	if s.routeResolver == nil || s.llmClient == nil {
 		return nil, ErrModelRouteNotConfigured
@@ -155,18 +167,25 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 			s.completeModerationAfterFailure(moderationCtx, moderationCoord, result)
 			cancelModeration()
 		}
+		if retErr != nil && assistantMessage != nil && assistantMessage.ID != 0 {
+			failureCtx, cancelFailure := background.WithTimeout(ctx, 5*time.Second)
+			if stateErr := s.repo.UpdateMessageState(failureCtx, assistantMessage.ID, "error", classifyRunErrorCode(retErr), textutil.TruncateTrimmed(messageErrorSummary(retErr), 255)); stateErr != nil && s.logger != nil {
+				s.logger.Error("image_failure_state_failed", zap.Error(stateErr))
+			}
+			cancelFailure()
+		}
 		endedAt := time.Now()
 		run.EndedAt = &endedAt
 		run.TotalLatencyMS = endedAt.Sub(startedAt).Milliseconds()
 		switch {
 		case result != nil && result.IsModerationBlocked():
 			applyBlockedRunFields(run, result)
-		case retErr == nil:
+		case retErr == nil && (result == nil || result.AssistantMessage.Status != "canceled"):
 			run.Status = "success"
 			if result != nil {
 				applyModerationRunState(run, result)
 			}
-		case errors.Is(retErr, ErrMessageGenerationCanceled):
+		case errors.Is(retErr, ErrMessageGenerationCanceled) || (result != nil && result.AssistantMessage.Status == "canceled"):
 			run.Status = "canceled"
 			run.ErrorCode = classifyRunErrorCode(retErr)
 			run.ErrorMessage = textutil.TruncateTrimmed(messageErrorSummary(retErr), 255)
@@ -245,6 +264,63 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 	}
 	attachmentsJSON := marshalAttachmentSnapshots(resolvedAttachments)
 
+	cfg := s.cfg.Snapshot()
+	attributionReferer, attributionTitle := s.llmAttribution()
+	routeConfig := routeConfigFromResolved(route, endpoint, attributionReferer, attributionTitle)
+	filteredOptions := filterModelOptions(input.Options, route.Protocol, modelOptionPolicyConfig{
+		Mode:                  cfg.ModelOptionPolicyMode,
+		AllowedPathsJSON:      cfg.ModelOptionAllowedPaths,
+		DeniedPathsJSON:       cfg.ModelOptionDeniedPaths,
+		ModelCapabilitiesJSON: route.ModelCapabilitiesJSON,
+	})
+	pointRunID := ""
+	var pointQuote *p.Quote
+	pointFinalized := false
+	if s.pointsSvc != nil {
+		pointQuote, err = s.quoteImageRoute(ctx, route, string(input.TaskType), input.Options, len(input.FileIDs))
+		if err != nil {
+			return nil, err
+		}
+		if err = apppoints.ValidateQuote(pointQuote, input.QuoteFingerprint); err != nil {
+			return nil, err
+		}
+		filteredOptions = pointQuote.Options
+		_, err = s.pointsSvc.Reserve(ctx, p.ReserveInput{RunID: runID, UserID: input.UserID, ConversationID: input.ConversationID, RequestHash: apppoints.RequestHash(input.UserID, input.ConversationID, string(input.TaskType), input.Prompt, input.FileIDs, input.MaskFileID, input.ParentMessagePublicID, input.SourceMessagePublicID, input.BranchReason, *pointQuote), Quote: *pointQuote})
+		if err != nil {
+			return nil, err
+		}
+		pointRunID = runID
+		leaseCtx, stopLease := context.WithCancel(ctx)
+		go func() {
+			if leaseErr := s.pointsSvc.KeepAlive(leaseCtx, runID); leaseErr != nil {
+				if s.logger != nil {
+					s.logger.Error("image_point_lease_failed", zap.String("run_id", runID), zap.Error(leaseErr))
+				}
+				cancel()
+			}
+		}()
+		defer stopLease()
+		defer func() {
+			if !pointFinalized {
+				settleCtx, cancelSettle := background.WithTimeout(ctx, 5*time.Second)
+				defer cancelSettle()
+				settled, settleErr := s.pointsSvc.Settle(settleCtx, runID, 0)
+				if settleErr != nil {
+					if s.logger != nil {
+						s.logger.Error("image_point_release_failed", zap.String("run_id", runID), zap.Error(settleErr))
+					}
+				} else if result != nil {
+					result.AssistantMessage.PointsStatus = settled.Status
+					result.AssistantMessage.PointsRequested = settled.RequestedCount
+				}
+			}
+		}()
+	}
+	if llm.NormalizeAdapter(route.Protocol) == llm.AdapterGeminiInteractions {
+		filteredOptions = withGeminiInteractionResponseType(filteredOptions, "image")
+		routeConfig.Endpoint = llm.EndpointInteractions
+		run.Endpoint = llm.EndpointInteractions
+	}
 	assistantMessage = &model.Message{
 		ConversationID: input.ConversationID,
 		UserID:         input.UserID,
@@ -343,20 +419,6 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 	}, runID, userMessage, assistantMessage)
 	emitMediaEvent(input.OnEvent, "queued", "image task queued")
 
-	cfg := s.cfg.Snapshot()
-	attributionReferer, attributionTitle := s.llmAttribution()
-	routeConfig := routeConfigFromResolved(route, endpoint, attributionReferer, attributionTitle)
-	filteredOptions := filterModelOptions(input.Options, route.Protocol, modelOptionPolicyConfig{
-		Mode:                  cfg.ModelOptionPolicyMode,
-		AllowedPathsJSON:      cfg.ModelOptionAllowedPaths,
-		DeniedPathsJSON:       cfg.ModelOptionDeniedPaths,
-		ModelCapabilitiesJSON: route.ModelCapabilitiesJSON,
-	})
-	if llm.NormalizeAdapter(route.Protocol) == llm.AdapterGeminiInteractions {
-		filteredOptions = withGeminiInteractionResponseType(filteredOptions, "image")
-		routeConfig.Endpoint = llm.EndpointInteractions
-		run.Endpoint = llm.EndpointInteractions
-	}
 	buildBillableFailure := func(failure error, usage llm.Usage) *SendMessageResult {
 		result := buildFailedMediaBillingResult(failedMediaBillingResultInput{
 			UserMessage:      userMessage,
@@ -409,7 +471,7 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 					return streamErr
 				}
 			}
-			if event.GeneratedImage != nil && event.GeneratedImagePartial {
+			if s.pointsSvc == nil && event.GeneratedImage != nil && event.GeneratedImagePartial {
 				return emitMediaImageDelta(input.OnEvent, event)
 			}
 			return nil
@@ -451,6 +513,9 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 		return buildBillableFailure(retErr, mediaOutputUsage(output)), retErr
 	}
 
+	if pointQuote != nil && len(output.GeneratedImages) > pointQuote.Count {
+		output.GeneratedImages = output.GeneratedImages[:pointQuote.Count]
+	}
 	hasGeneratedImages := len(output.GeneratedImages) > 0
 	if hasGeneratedImages {
 		emitMediaEvent(input.OnEvent, "saving_artifact", "saving image")
@@ -459,27 +524,64 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 	attachmentRows := make([]model.Attachment, 0, len(output.GeneratedImages))
 	generatedBytesByFileID := make(map[string][]byte, len(output.GeneratedImages))
 	now := time.Now()
+
+	// 积分任务的输出先暂存，审核和附件/结算事务提交后才对用户可见。
+	purpose := "generated_image"
+	if pointQuote != nil {
+		purpose = "generated_image_pending"
+	}
+	seenImageHashes := make(map[[32]byte]bool)
+	defer func() {
+		if pointQuote != nil && !pointFinalized {
+			cleanupCtx, cancelCleanup := background.WithTimeout(ctx, 10*time.Second)
+			defer cancelCleanup()
+			for _, file := range uploaded {
+				if _, _, cleanupErr := s.uploadSvc.DeleteFileIfUnreferenced(cleanupCtx, input.UserID, file.FileID); cleanupErr != nil && s.logger != nil {
+					s.logger.Error("image_pending_cleanup_failed", zap.String("file_id", file.FileID), zap.Error(cleanupErr))
+				}
+			}
+		}
+	}()
+	var firstArtifactError error
 	for i, image := range output.GeneratedImages {
 		data, mimeType, readErr := s.readGeneratedImage(ctx, image, mediaArtifactSourceFor(route))
 		if readErr != nil {
+			if pointQuote != nil {
+				if firstArtifactError == nil {
+					firstArtifactError = readErr
+				}
+				continue
+			}
 			retErr = s.finalizeGeneratedMediaArtifactFailure(ctx, run, assistantMessage.ID, i+1, len(output.GeneratedImages), readErr)
 			return buildBillableFailure(retErr, output.Usage), retErr
 		}
+		imageHash := sha256.Sum256(data)
+		if pointQuote != nil && seenImageHashes[imageHash] {
+			continue
+		}
 		fileName := generatedImageFileName(route.PlatformModelName, now, i, len(output.GeneratedImages), mimeType)
 		uploadResult, uploadErr := s.uploadSvc.UploadFile(ctx, appupload.UploadFileInput{
-			UserID:       input.UserID,
-			Purpose:      "generated_image",
-			FileName:     fileName,
-			MimeType:     mimeType,
-			DeclaredSize: int64(len(data)),
-			Reader:       bytes.NewReader(data),
-			MaxBytes:     maxGeneratedImageBytes,
+			UserID:          input.UserID,
+			Purpose:         purpose,
+			GenerationRunID: pointRunID,
+			FileName:        fileName,
+			MimeType:        mimeType,
+			DeclaredSize:    int64(len(data)),
+			Reader:          bytes.NewReader(data),
+			MaxBytes:        maxGeneratedImageBytes,
 		})
 		if uploadErr != nil {
+			if pointQuote != nil {
+				if firstArtifactError == nil {
+					firstArtifactError = uploadErr
+				}
+				continue
+			}
 			retErr = uploadErr
 			_ = s.repo.UpdateMessageState(ctx, assistantMessage.ID, "error", classifyRunErrorCode(retErr), textutil.TruncateTrimmed(messageErrorSummary(retErr), 255))
 			return buildBillableFailure(uploadErr, output.Usage), uploadErr
 		}
+		seenImageHashes[imageHash] = true
 		file := uploadResult.File
 		uploaded = append(uploaded, file)
 		generatedBytesByFileID[file.FileID] = data
@@ -497,6 +599,12 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 			Status:         "active",
 			UploadedAt:     now,
 		})
+	}
+	if pointQuote != nil && hasGeneratedImages && len(uploaded) == 0 {
+		if firstArtifactError == nil {
+			firstArtifactError = ErrUpstreamEmptyResponse
+		}
+		return buildBillableFailure(firstArtifactError, output.Usage), firstArtifactError
 	}
 	usage := output.Usage
 	if reuseUserMessage {
@@ -516,12 +624,28 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 		contentType = "text"
 		content = strings.TrimSpace(output.Text)
 	}
+	// 积分图片先等待审核结论，再原子发布附件和结算，不能先收费后撤回结果。
+	var pointModeration *MessageModerationOutcome
+	if pointQuote != nil && moderationCoord != nil {
+		previewAssistant := *assistantMessage
+		previewAssistant.Content = content
+		previewAssistant.ContentType = contentType
+		previewAssistant.Status = "success"
+		previewAssistant.Attachments = string(marshalAttachmentSnapshots(attachmentsFromFiles(uploaded)))
+		preview := &SendMessageResult{UserMessage: *userMessage, AssistantMessage: previewAssistant, Billable: true, PlatformModelName: route.PlatformModelName, UpstreamID: route.UpstreamID, UpstreamName: route.UpstreamName, UpstreamProtocol: route.Protocol, UpstreamModelName: route.UpstreamModel, EffectiveOptions: filteredOptions, StartedAt: startedAt}
+		applyBarrierOutcome(preview, moderationCoord.AfterGeneration(ctx, moderationOutputText(output.Text, traceRecorder.upstreamThinkContent()), loadOutputImagesFromFiles(moderationCoord, uploaded, generatedBytesByFileID)))
+		if preview.IsModerationBlocked() {
+			return preview, nil
+		}
+		pointModeration = preview.Moderation
+	}
 	latencyMS := time.Since(startedAt).Milliseconds()
 	// 上游与文件上传已完成后，数据库侧的附件、用量和完成态仍需保持原子一致。
 	if reuseUserMessage {
 		if err = s.repo.CompleteAssistantMessageWithGeneratedAttachments(ctx,
 			assistantMessage.ID,
 			repository.AssistantMessageCompletionUpdate{
+				PointsRunID: pointRunID, PointsDelivered: len(uploaded),
 				ContentType:      contentType,
 				Content:          content,
 				InputTokens:      usage.InputTokens,
@@ -547,6 +671,7 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 			},
 			assistantMessage.ID,
 			repository.AssistantMessageCompletionUpdate{
+				PointsRunID: pointRunID, PointsDelivered: len(uploaded),
 				ContentType:     contentType,
 				Content:         content,
 				OutputTokens:    usage.OutputTokens,
@@ -558,6 +683,18 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 		); err != nil {
 			retErr = err
 			return buildBillableFailure(err, output.Usage), err
+		}
+	}
+	if pointQuote != nil {
+		pointFinalized = true
+		optionsSnapshot, _ := json.Marshal(pointQuote)
+		assistantMessage.PointsOptionsJSON = string(optionsSnapshot)
+		assistantMessage.PointsSpent = int64(len(uploaded)) * pointQuote.Price.PointsPerImage
+		assistantMessage.PointsRequested = pointQuote.Count
+		assistantMessage.PointsDelivered = len(uploaded)
+		assistantMessage.PointsStatus = "settled"
+		if len(uploaded) == 0 {
+			assistantMessage.PointsStatus = "released"
 		}
 	}
 	assistantMessage.Content = content
@@ -597,7 +734,8 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 		LatencyMS:           latencyMS,
 		StartedAt:           startedAt,
 	}
-	if moderationCoord != nil {
+	result.Moderation = pointModeration
+	if moderationCoord != nil && pointQuote == nil {
 		outputImages := loadOutputImagesFromFiles(moderationCoord, uploaded, generatedBytesByFileID)
 		s.completeModerationAfterSuccess(ctx, completeModerationAfterSuccessInput{
 			Coordinator:  moderationCoord,
@@ -610,6 +748,13 @@ func (s *Service) StreamMediaImage(ctx context.Context, input MediaImageInput) (
 			},
 			ReuseUserMessage: reuseUserMessage,
 		})
+	}
+	if moderationCoord != nil && pointQuote != nil {
+		if reuseUserMessage {
+			s.embedMessagePairAsync(ctx, SendMessageInput{UserID: input.UserID, ConversationID: input.ConversationID}, nil, &result.AssistantMessage)
+		} else {
+			s.embedMessagePairAsync(ctx, SendMessageInput{UserID: input.UserID, ConversationID: input.ConversationID}, &result.UserMessage, &result.AssistantMessage)
+		}
 	}
 	return result, nil
 }

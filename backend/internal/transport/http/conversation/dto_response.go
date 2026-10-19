@@ -11,6 +11,7 @@ import (
 	appprocessing "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/processing"
 	appupload "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/upload"
 	model "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/conversation"
+	p "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/points"
 )
 
 // ---------- 会话 ----------
@@ -849,24 +850,45 @@ type MessageKnowledgeSourceResponse struct {
 }
 
 // MessageResponse 消息响应 DTO。
+// MessagePointSummaryResponse 独立展示图片积分，不依赖货币计费是否启用。
+type MessagePointSummaryResponse struct {
+	Model     string         `json:"model"`
+	TaskType  string         `json:"taskType"`
+	Options   map[string]any `json:"options,omitempty"`
+	Spent     int64          `json:"spent"`
+	Delivered int            `json:"delivered"`
+	Requested int            `json:"requested"`
+	Status    string         `json:"status"`
+}
+
+func toMessagePointSummary(m model.Message) *MessagePointSummaryResponse {
+	if m.PointsStatus == "" {
+		return nil
+	}
+	var quote p.Quote
+	_ = json.Unmarshal([]byte(m.PointsOptionsJSON), &quote)
+	return &MessagePointSummaryResponse{Model: quote.Model, TaskType: quote.TaskType, Options: quote.Options, Spent: m.PointsSpent, Delivered: m.PointsDelivered, Requested: m.PointsRequested, Status: m.PointsStatus}
+}
+
 type MessageResponse struct {
-	ID               uint   `json:"id"`
-	ConversationID   uint   `json:"conversationID"`
-	UserID           uint   `json:"userID"`
-	PublicID         string `json:"publicID"`
-	ParentMessageID  *uint  `json:"parentMessageID" extensions:"x-nullable,!x-omitempty"`
-	RunID            string `json:"runID"`
-	Role             string `json:"role"`
-	ContentType      string `json:"contentType"`
-	Content          string `json:"content"`
-	BranchReason     string `json:"branchReason"`
-	SourceMessageID  *uint  `json:"sourceMessageID" extensions:"x-nullable,!x-omitempty"`
-	TokenUsage       int64  `json:"tokenUsage"`
-	InputTokens      int64  `json:"inputTokens"`
-	OutputTokens     int64  `json:"outputTokens"`
-	CacheReadTokens  int64  `json:"cacheReadTokens"`
-	CacheWriteTokens int64  `json:"cacheWriteTokens"`
-	ReasoningTokens  int64  `json:"reasoningTokens"`
+	Points           *MessagePointSummaryResponse `json:"points,omitempty"`
+	ID               uint                         `json:"id"`
+	ConversationID   uint                         `json:"conversationID"`
+	UserID           uint                         `json:"userID"`
+	PublicID         string                       `json:"publicID"`
+	ParentMessageID  *uint                        `json:"parentMessageID" extensions:"x-nullable,!x-omitempty"`
+	RunID            string                       `json:"runID"`
+	Role             string                       `json:"role"`
+	ContentType      string                       `json:"contentType"`
+	Content          string                       `json:"content"`
+	BranchReason     string                       `json:"branchReason"`
+	SourceMessageID  *uint                        `json:"sourceMessageID" extensions:"x-nullable,!x-omitempty"`
+	TokenUsage       int64                        `json:"tokenUsage"`
+	InputTokens      int64                        `json:"inputTokens"`
+	OutputTokens     int64                        `json:"outputTokens"`
+	CacheReadTokens  int64                        `json:"cacheReadTokens"`
+	CacheWriteTokens int64                        `json:"cacheWriteTokens"`
+	ReasoningTokens  int64                        `json:"reasoningTokens"`
 	// ReasoningEffort 是生成该消息时生效的规范推理档位；模型无推理能力时为 null。
 	ReasoningEffort *string `json:"reasoningEffort" enums:"none,minimal,low,medium,high,xhigh,max,ultra" extensions:"x-nullable,!x-omitempty"`
 	LatencyMS       int64   `json:"latencyMS"`
@@ -1146,6 +1168,7 @@ func toMessageResponseWithRunAndFallback(m model.Message, run model.Run, fallbac
 		UIState:           appconversation.MergedMessageUIState(uiState),
 		ThumbsUpCount:     m.ThumbsUpCount,
 		ThumbsDownCount:   m.ThumbsDownCount,
+		Points:            toMessagePointSummary(m),
 		BillingCost:       toMessageBillingCostResponse(m),
 		KnowledgeSources:  toMessageKnowledgeSourceResponses(knowledgeSources),
 		ProcessTrace:      toMessageProcessTraceResponse(processTrace),
@@ -1333,28 +1356,29 @@ func toMessageFeedbackResponse(r *appconversation.MessageFeedbackResult) Message
 
 // RunResponse 对话运行日志响应 DTO。
 type RunResponse struct {
-	ID                 uint   `json:"id"`
-	RunID              string `json:"runID"`
-	RequestID          string `json:"requestID"`
-	UserID             uint   `json:"userID"`
-	ConversationID     uint   `json:"conversationID"`
-	TaskType           string `json:"taskType"`
-	Endpoint           string `json:"endpoint"`
-	Provider           string `json:"provider"`
-	ProviderProtocol   string `json:"providerProtocol"`
-	UpstreamID         uint   `json:"upstreamID"`
-	UpstreamModelID    uint   `json:"upstreamModelID"`
-	RequestedModelName string `json:"requestedModelName"`
-	PlatformModelName  string `json:"platformModelName"`
-	RoutedBindingCode  string `json:"routedBindingCode"`
-	ModelVendor        string `json:"modelVendor"`
-	ModelIcon          string `json:"modelIcon"`
-	UpstreamModelName  string `json:"upstreamModelName"`
-	InputTokens        int64  `json:"inputTokens"`
-	OutputTokens       int64  `json:"outputTokens"`
-	CacheReadTokens    int64  `json:"cacheReadTokens"`
-	CacheWriteTokens   int64  `json:"cacheWriteTokens"`
-	ReasoningTokens    int64  `json:"reasoningTokens"`
+	Points             *MessagePointSummaryResponse `json:"points,omitempty"`
+	ID                 uint                         `json:"id"`
+	RunID              string                       `json:"runID"`
+	RequestID          string                       `json:"requestID"`
+	UserID             uint                         `json:"userID"`
+	ConversationID     uint                         `json:"conversationID"`
+	TaskType           string                       `json:"taskType"`
+	Endpoint           string                       `json:"endpoint"`
+	Provider           string                       `json:"provider"`
+	ProviderProtocol   string                       `json:"providerProtocol"`
+	UpstreamID         uint                         `json:"upstreamID"`
+	UpstreamModelID    uint                         `json:"upstreamModelID"`
+	RequestedModelName string                       `json:"requestedModelName"`
+	PlatformModelName  string                       `json:"platformModelName"`
+	RoutedBindingCode  string                       `json:"routedBindingCode"`
+	ModelVendor        string                       `json:"modelVendor"`
+	ModelIcon          string                       `json:"modelIcon"`
+	UpstreamModelName  string                       `json:"upstreamModelName"`
+	InputTokens        int64                        `json:"inputTokens"`
+	OutputTokens       int64                        `json:"outputTokens"`
+	CacheReadTokens    int64                        `json:"cacheReadTokens"`
+	CacheWriteTokens   int64                        `json:"cacheWriteTokens"`
+	ReasoningTokens    int64                        `json:"reasoningTokens"`
 	// ReasoningEffort 是本次运行生效的规范推理档位；模型无推理能力时为 null。
 	ReasoningEffort     *string    `json:"reasoningEffort" enums:"none,minimal,low,medium,high,xhigh,max,ultra" extensions:"x-nullable,!x-omitempty"`
 	ToolCallsCount      int        `json:"toolCallsCount"`
@@ -1371,6 +1395,7 @@ type RunResponse struct {
 
 func toRunResponse(r model.Run) RunResponse {
 	return RunResponse{
+		Points:              toRunPointSummary(r.Points),
 		ID:                  r.ID,
 		RunID:               r.RunID,
 		RequestID:           r.RequestID,
@@ -1408,9 +1433,17 @@ func toRunResponse(r model.Run) RunResponse {
 }
 
 // ConversationRunStatusResponse 对话运行状态响应 DTO。
+func toRunPointSummary(p *model.ImagePointSummary) *MessagePointSummaryResponse {
+	if p == nil {
+		return nil
+	}
+	return &MessagePointSummaryResponse{Model: p.Model, TaskType: p.TaskType, Options: p.Options, Spent: p.Spent, Delivered: p.Delivered, Requested: p.Requested, Status: p.Status}
+}
+
 type ConversationRunStatusResponse struct {
-	RunID  string `json:"runID"`
-	Status string `json:"status"`
+	Points *MessagePointSummaryResponse `json:"points,omitempty"`
+	RunID  string                       `json:"runID"`
+	Status string                       `json:"status"`
 }
 
 // ---------- 文件处理状态 ----------

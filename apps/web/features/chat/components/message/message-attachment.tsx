@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
 
 import {
   Attachment,
@@ -78,12 +80,15 @@ export function MessageAttachmentRow({
   loadContent,
   allowDownload = true,
   align = "end",
+  onEditImage,
 }: {
+  onEditImage?: (attachment: MessageAttachment) => void;
   attachments: MessageAttachment[];
   loadContent?: FileContentLoader;
   allowDownload?: boolean;
   align?: "start" | "end";
 }) {
+  const t = useTranslations("chat.points");
   const [activeAtt, setActiveAtt] = React.useState<MessageAttachment | null>(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
 
@@ -101,7 +106,10 @@ export function MessageAttachmentRow({
     <>
       <div className={`flex max-w-full flex-wrap gap-2 sm:max-w-[70%] ${align === "start" ? "justify-start" : "justify-end"}`}>
         {attachments.map((att) => (
-          <AttachmentCard key={att.fileID} att={att} onClick={() => handleClick(att)} />
+          <div key={att.fileID} className="flex flex-col items-end gap-1">
+            <AttachmentCard att={att} onClick={() => handleClick(att)} />
+            {onEditImage && att.mimeType.startsWith("image/") ? <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => onEditImage(att)}>{t("addToEdit")}</Button> : null}
+          </div>
         ))}
       </div>
       {activeAtt ? (

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { notifyPointsChanged } from "@/entities/points";
 import { ConversationRunStore } from "@/features/chat/model/conversation-run-store";
 import { streamActiveConversationRuns } from "@/shared/api/conversation";
 import type { ActiveConversationRunEvent } from "@/shared/api/conversation-types";
@@ -55,6 +56,8 @@ export function useChatRunState() {
       }
       runStateChannelRef.current?.postMessage({ type: "finished", runID: normalizedRunID });
       store.settle(normalizedRunID);
+      // 刷新恢复的任务也走完成通知，及时同步已结算或释放的冻结积分。
+      notifyPointsChanged();
     },
     [store],
   );
@@ -84,6 +87,7 @@ export function useChatRunState() {
       }
       if (message.type === "finished") {
         store.applyFinished(runID, false);
+        notifyPointsChanged();
         return;
       }
       const conversationPublicID =
@@ -140,6 +144,8 @@ export function useChatRunState() {
         store.applyStarted(event.runID, event.conversationPublicID ?? "");
       } else {
         store.applyFinished(event.runID, true);
+        // 服务端完成事件覆盖其他页签执行、取消及恢复连接后的收口。
+        notifyPointsChanged();
       }
     }
 

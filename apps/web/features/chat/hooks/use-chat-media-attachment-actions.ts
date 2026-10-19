@@ -21,7 +21,9 @@ export function useChatMediaAttachmentActions({
   setAttachments,
   setSelectedPlatformModelName,
   releaseAttachments,
+  enterImageMode,
 }: {
+  enterImageMode?: (mode: "image", preferredModel?: string) => boolean;
   attachments: PendingAttachment[];
   maxFilesPerMessage: number;
   modelOptions: ChatModelOption[];
@@ -35,6 +37,16 @@ export function useChatMediaAttachmentActions({
 
   const onEditGeneratedImageAttachment = React.useCallback(
     (attachment: MessageAttachment, sourceModelName?: string) => {
+      const editingModel = (selectedModel?.kinds.includes("image_edit") && selectedModel.imageParameters ? selectedModel : undefined)
+        ?? modelOptions.find((model) => model.platformModelName === sourceModelName && model.kinds.includes("image_edit") && model.imageParameters)
+        ?? modelOptions.find((model) => model.kinds.includes("image_edit") && model.imageParameters);
+      if (!editingModel || (enterImageMode && !enterImageMode("image", editingModel.platformModelName))) {
+        toast.error(t("points.noEditModel")); return;
+      }
+      const referenceLimit = editingModel.imageParameters?.maxReferenceImages ?? maxFilesPerMessage;
+      if (referenceLimit > 0 && !attachments.some((item) => item.fileID === attachment.fileID) && attachments.length >= referenceLimit) {
+        toast.error(t("attachments.limitReached")); return;
+      }
       const alreadyAttached = attachments.some((item) => item.fileID === attachment.fileID);
       if (!alreadyAttached && maxFilesPerMessage > 0 && attachments.length >= maxFilesPerMessage) {
         toast.error(t("attachments.limitReached"), {
@@ -51,21 +63,11 @@ export function useChatMediaAttachmentActions({
         return [...previous, pendingAttachment];
       });
 
-      const selectedSupportsImageEdit = selectedModel?.kinds.includes("image_edit") ?? false;
-      if (!selectedSupportsImageEdit) {
-        const normalizedSourceModelName = sourceModelName?.trim() || "";
-        const sourceModel = modelOptions.find(
-          (item) => item.platformModelName === normalizedSourceModelName && item.kinds.includes("image_edit"),
-        );
-        const fallbackModel = sourceModel ?? modelOptions.find((item) => item.kinds.includes("image_edit"));
-        if (fallbackModel) {
-          setSelectedPlatformModelName(fallbackModel.platformModelName);
-        }
-      }
 
     },
     [
       attachments,
+      enterImageMode,
       maxFilesPerMessage,
       modelOptions,
       selectedModel,

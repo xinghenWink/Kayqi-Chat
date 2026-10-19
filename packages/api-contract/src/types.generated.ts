@@ -69,6 +69,17 @@ export interface AddKnowledgeBaseFilesRequest {
   fileIDs: string[];
 }
 
+export interface AdjustmentRequest {
+  delta: number;
+  /** @maxLength 255 */
+  reason: string;
+  /**
+   * @minLength 8
+   * @maxLength 100
+   */
+  refNo: string;
+}
+
 export interface AdminAnnouncementListResponseDoc {
   data: {
     results: AnnouncementResponse[];
@@ -1112,6 +1123,7 @@ export interface ConversationRunListResponseDoc {
 }
 
 export interface ConversationRunStatusResponse {
+  points?: MessagePointSummaryResponse;
   runID: string;
   status: string;
 }
@@ -2240,6 +2252,8 @@ export interface MediaImageRequest {
   /** @maxLength 32 */
   parentMessagePublicID?: string;
   prompt: string;
+  /** @maxLength 64 */
+  quoteFingerprint?: string;
   /** @maxLength 32 */
   sourceMessagePublicID?: string;
 }
@@ -2339,6 +2353,16 @@ export interface MessageModerationResponse {
   state?: string;
 }
 
+export interface MessagePointSummaryResponse {
+  delivered: number;
+  model: string;
+  options?: Record<string, any>;
+  requested: number;
+  spent: number;
+  status: string;
+  taskType: string;
+}
+
 export interface MessageProcessTraceDetailResponse {
   processTrace: MessageProcessTraceResponse | null;
 }
@@ -2420,6 +2444,7 @@ export interface MessageResponse {
   parentMessageID: number | null;
   parentPublicID: string;
   platformModelName: string;
+  points?: MessagePointSummaryResponse;
   processTrace?: MessageProcessTraceResponse;
   publicID: string;
   /** ReasoningEffort 是生成该消息时生效的规范推理档位；模型无推理能力时为 null。 */
@@ -3413,6 +3438,55 @@ export interface PlatformFileDeleteResponseDoc {
   errorMsg: string;
 }
 
+export interface Policy {
+  concurrentGlobal: number;
+  concurrentPerUser: number;
+  dailyBonus: number;
+  enabled: boolean;
+  maxCount: number;
+  maxReferenceImages: number;
+  signupBonus: number;
+}
+
+export interface Price {
+  enabled: boolean;
+  id: number;
+  model: string;
+  pointsPerImage: number;
+  quality: string;
+  size: string;
+  taskType: string;
+  version: number;
+}
+
+export interface PriceListResponseDoc {
+  data: Price[];
+  errorMsg: string;
+}
+
+export interface PriceRequest {
+  enabled: boolean;
+  id?: number;
+  /** @maxLength 128 */
+  model: string;
+  /**
+   * @min 0
+   * @max 1000000000
+   */
+  pointsPerImage: number;
+  /** @maxLength 32 */
+  quality: string;
+  /** @maxLength 32 */
+  size: string;
+  taskType: "image_generation" | "image_edit";
+  version: number;
+}
+
+export interface PriceResponseDoc {
+  data: Price;
+  errorMsg: string;
+}
+
 export interface PromptPresetDataResponse {
   promptPreset: PromptPresetResponse;
 }
@@ -3728,6 +3802,30 @@ export interface PublicSharedMessageResponse {
   upstreamModelName: string;
 }
 
+export interface Quote {
+  count: number;
+  fingerprint: string;
+  model: string;
+  options: Record<string, any>;
+  price: Price;
+  taskType: string;
+  totalPoints: number;
+}
+
+export interface QuoteRequest {
+  /** @maxItems 16 */
+  fileIDs?: string[];
+  /** @maxLength 128 */
+  model: string;
+  options?: Record<string, any>;
+  taskType: "image_generation" | "image_edit";
+}
+
+export interface QuoteResponseDoc {
+  data: Quote;
+  errorMsg: string;
+}
+
 export interface RedeemCodeRequest {
   /**
    * @minLength 3
@@ -3888,6 +3986,34 @@ export interface ReorderServersRequest {
   servers: ReorderServerOrderItem[];
 }
 
+export interface Reservation {
+  conversationID: number;
+  createdAt: string;
+  dailyDate: string;
+  deliveredCount: number;
+  expiresAt: string;
+  quoteJSON: string;
+  requestHash: string;
+  requestedCount: number;
+  reservedDaily: number;
+  reservedPermanent: number;
+  runID: string;
+  settledAt: string;
+  spentPoints: number;
+  status: string;
+  userID: number;
+}
+
+export interface ReservationPage {
+  results: Reservation[];
+  total: number;
+}
+
+export interface ReservationResponseDoc {
+  data: ReservationPage;
+  errorMsg: string;
+}
+
 export interface ResetUpstreamCircuitResponseDoc {
   data: CircuitResetResponse;
   errorMsg: string;
@@ -3979,6 +4105,7 @@ export interface RunResponse {
   modelVendor: string;
   outputTokens: number;
   platformModelName: string;
+  points?: MessagePointSummaryResponse;
   provider: string;
   providerProtocol: string;
   /** ReasoningEffort 是本次运行生效的规范推理档位；模型无推理能力时为 null。 */
@@ -4446,6 +4573,30 @@ export interface ToolResponse {
 
 export interface ToolResponseDoc {
   data: ToolResponse;
+  errorMsg: string;
+}
+
+export interface Transaction {
+  actorID: number;
+  createdAt: string;
+  dailyDate: string;
+  dailyDelta: number;
+  id: number;
+  permanentDelta: number;
+  reason: string;
+  refNo: string;
+  runID: string;
+  type: string;
+  userID: number;
+}
+
+export interface TransactionPage {
+  results: Transaction[];
+  total: number;
+}
+
+export interface TransactionResponseDoc {
+  data: TransactionPage;
   errorMsg: string;
 }
 
@@ -5432,6 +5583,21 @@ export interface UserSettingsResponse {
 
 export interface UserSettingsResponseDoc {
   data: UserSettingsResponse;
+  errorMsg: string;
+}
+
+export interface Wallet {
+  dailyDate: string;
+  dailyPoints: number;
+  frozenPoints: number;
+  permanentPoints: number;
+  policy: Policy;
+  totalPoints: number;
+  userID: number;
+}
+
+export interface WalletResponseDoc {
+  data: Wallet;
   errorMsg: string;
 }
 
@@ -8036,6 +8202,122 @@ export namespace Admin {
     export type RequestBody = SetGroupUsersRequest;
     export type RequestHeaders = {};
     export type ResponseBody = GroupUsersResponseDoc;
+  }
+
+  /**
+   * No description
+   * @tags admin-points
+   * @name PointsPricesList
+   * @summary 查询图片积分价格
+   * @request GET:/admin/points/prices
+   * @secure
+   */
+  export namespace PointsPricesList {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = PriceListResponseDoc;
+  }
+
+  /**
+   * No description
+   * @tags admin-points
+   * @name PointsPricesUpdate
+   * @summary 创建或按版本更新图片价格
+   * @request PUT:/admin/points/prices
+   * @secure
+   */
+  export namespace PointsPricesUpdate {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = PriceRequest;
+    export type RequestHeaders = {};
+    export type ResponseBody = PriceResponseDoc;
+  }
+
+  /**
+   * No description
+   * @tags admin-points
+   * @name PointsReservationsList
+   * @summary 管理员查询图片任务预留及结算
+   * @request GET:/admin/points/reservations
+   * @secure
+   */
+  export namespace PointsReservationsList {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /** 页码 */
+      page?: number;
+      /** 每页数量 */
+      page_size?: number;
+      /** 用户ID */
+      user_id?: number;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = ReservationResponseDoc;
+  }
+
+  /**
+   * No description
+   * @tags admin-points
+   * @name PointsTransactionsList
+   * @summary 管理员查询积分流水
+   * @request GET:/admin/points/transactions
+   * @secure
+   */
+  export namespace PointsTransactionsList {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /** 页码 */
+      page?: number;
+      /** 每页数量 */
+      page_size?: number;
+      /** 用户ID */
+      user_id?: number;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = TransactionResponseDoc;
+  }
+
+  /**
+   * No description
+   * @tags admin-points
+   * @name PointsUsersDetail
+   * @summary 管理员查询用户钱包
+   * @request GET:/admin/points/users/{id}
+   * @secure
+   */
+  export namespace PointsUsersDetail {
+    export type RequestParams = {
+      /** 用户ID */
+      id: number;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = WalletResponseDoc;
+  }
+
+  /**
+   * No description
+   * @tags admin-points
+   * @name PointsUsersAdjustCreate
+   * @summary 幂等调整用户永久积分并记录原因
+   * @request POST:/admin/points/users/{id}/adjust
+   * @secure
+   */
+  export namespace PointsUsersAdjustCreate {
+    export type RequestParams = {
+      /** 用户ID */
+      id: number;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = AdjustmentRequest;
+    export type RequestHeaders = {};
+    export type ResponseBody = WalletResponseDoc;
   }
 
   /**
@@ -11485,6 +11767,77 @@ export namespace Models {
     export type RequestBody = never;
     export type RequestHeaders = {};
     export type ResponseBody = PublicModelListResponseDoc;
+  }
+}
+
+export namespace Points {
+  /**
+   * No description
+   * @tags points
+   * @name DailyGrantsEnsureCreate
+   * @summary 幂等领取上海时区当日积分
+   * @request POST:/points/daily-grants/ensure
+   * @secure
+   */
+  export namespace DailyGrantsEnsureCreate {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = WalletResponseDoc;
+  }
+
+  /**
+   * No description
+   * @tags points
+   * @name ImageQuoteCreate
+   * @summary 根据后端有效参数报价
+   * @request POST:/points/image-quote
+   * @secure
+   */
+  export namespace ImageQuoteCreate {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = QuoteRequest;
+    export type RequestHeaders = {};
+    export type ResponseBody = QuoteResponseDoc;
+  }
+
+  /**
+   * No description
+   * @tags points
+   * @name GetPoints
+   * @summary 查询当前积分钱包
+   * @request GET:/points/me
+   * @secure
+   */
+  export namespace GetPoints {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = WalletResponseDoc;
+  }
+
+  /**
+   * No description
+   * @tags points
+   * @name TransactionsList
+   * @summary 查询当前用户积分流水
+   * @request GET:/points/transactions
+   * @secure
+   */
+  export namespace TransactionsList {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /** 页码 */
+      page?: number;
+      /** 每页数量 */
+      page_size?: number;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = TransactionResponseDoc;
   }
 }
 

@@ -283,8 +283,13 @@ func (s *Service) RegisterWithEmail(ctx context.Context, input RegisterWithEmail
 		Locale:          "en-US",
 		EmailVerifiedAt: verifiedAt,
 	}
+	signupBonus, err := s.signupPoints(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if err = s.createWithCredentialUsingAvailableUsername(ctx, repository.CreateWithCredentialInput{
-		User: userItem,
+		SignupPoints: signupBonus,
+		User:         userItem,
 		Credential: domainuser.Credential{
 			PasswordHash:      string(passwordHash),
 			PasswordAlgo:      "bcrypt",

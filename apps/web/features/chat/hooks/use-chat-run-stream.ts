@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyPointsChanged } from "@/entities/points";
 import { UI_BLOCK_FORMAT_VERSION } from "@deeix/core";
 import { splitControlSelections } from "@/features/chat/model/chat-model-controls";
 import { useTranslations } from "next-intl";
@@ -71,6 +72,7 @@ export function useChatRunStream({
       clientRunID,
       content,
       options,
+      pointQuoteFingerprint,
       effectiveAttachments,
       platformModelName,
       selectedToolIDs,
@@ -92,6 +94,7 @@ export function useChatRunStream({
       clientRunID: string;
       content: string;
       options: ConversationOptions;
+      pointQuoteFingerprint?: string;
       effectiveAttachments: PendingAttachment[];
       platformModelName: string;
       selectedToolIDs: number[];
@@ -292,12 +295,14 @@ export function useChatRunStream({
       } else {
         const mediaPayload: MediaImageRequest = {
           ...commonStreamPayload,
+          quoteFingerprint: pointQuoteFingerprint,
           prompt: content,
         };
-        completed =
-          submitTask === "image_generation"
+        try {
+          completed = submitTask === "image_generation"
             ? await streamImageGeneration(token, conversationID, mediaPayload, streamOptions)
             : await streamImageEdit(token, conversationID, mediaPayload, streamOptions);
+        } finally { notifyPointsChanged(); }
       }
 
       flushStreamTextNow(exchangeKey);

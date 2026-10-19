@@ -116,6 +116,7 @@ type ChatAreaProps = {
   onModelChange: (platformModelName: string) => void;
   onModelCatalogRefresh?: () => void | Promise<void>;
   attachmentContentLoader?: FileContentLoader;
+  onReuseImageConfiguration?: (message: ChatAreaMessage) => void;
   onEditImageAttachment?: (attachment: MessageAttachment, sourceModelName?: string) => void;
   onExtendVideoAttachment?: (attachment: MessageAttachment, sourceModelName?: string) => void;
   onOpenCodeArtifact?: (message: ChatAreaMessage, artifact: OpenCodeArtifactInput) => void;
@@ -292,6 +293,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   onModelChange,
   onModelCatalogRefresh,
   attachmentContentLoader,
+  onReuseImageConfiguration,
   onEditImageAttachment,
   onExtendVideoAttachment,
   onCycleMessageBranch,
@@ -333,6 +335,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   onModelChange: (platformModelName: string) => void;
   onModelCatalogRefresh?: () => void | Promise<void>;
   attachmentContentLoader?: FileContentLoader;
+  onReuseImageConfiguration?: (message: ChatAreaMessage) => void;
   onEditImageAttachment?: (attachment: MessageAttachment, sourceModelName?: string) => void;
   onExtendVideoAttachment?: (attachment: MessageAttachment, sourceModelName?: string) => void;
   onCycleMessageBranch: (parentPublicID: string | null, direction: "previous" | "next") => void;
@@ -417,6 +420,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
     return (
       <ChatMessageUser
         item={item}
+        onEditImageAttachment={onEditImageAttachment}
         onRetryUserMessage={onRetryUserMessage}
         onDeleteUserMessage={onDeleteMessage}
         onEditUserMessage={onEditUserMessage}
@@ -451,6 +455,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
         onCopy={() => void onCopy()}
         copySucceeded={isCopied(copyKey)}
         attachmentContentLoader={attachmentContentLoader}
+        onReuseImageConfiguration={onReuseImageConfiguration}
         onEditImageAttachment={onEditImageAttachment}
         onExtendVideoAttachment={
           sourceSupportsVideoExtension ? onExtendVideoAttachment : undefined
@@ -516,6 +521,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   previous.onModelChange === next.onModelChange &&
   previous.onModelCatalogRefresh === next.onModelCatalogRefresh &&
   previous.attachmentContentLoader === next.attachmentContentLoader &&
+  previous.onReuseImageConfiguration === next.onReuseImageConfiguration &&
   previous.onEditImageAttachment === next.onEditImageAttachment &&
   previous.onExtendVideoAttachment === next.onExtendVideoAttachment &&
   previous.onOpenCodeArtifact === next.onOpenCodeArtifact &&
@@ -546,6 +552,7 @@ export function ChatArea({
   onModelChange,
   onModelCatalogRefresh,
   attachmentContentLoader,
+  onReuseImageConfiguration,
   onEditImageAttachment,
   onExtendVideoAttachment,
   onOpenCodeArtifact,
@@ -592,6 +599,7 @@ export function ChatArea({
   const stableOnDeleteMessage = useStableEvent(onDeleteMessage ?? ((): undefined => undefined));
   const stableOnModelChange = useStableEvent(onModelChange);
   const stableOnModelCatalogRefresh = useStableEvent(onModelCatalogRefresh ?? ((): undefined => undefined));
+  const stableOnReuseImageConfiguration = useStableEvent((message: ChatAreaMessage) => onReuseImageConfiguration?.(message));
   const stableOnEditImageAttachment = useStableEvent((attachment: MessageAttachment, sourceModelName?: string) => {
     onEditImageAttachment?.(attachment, sourceModelName);
   });
@@ -748,6 +756,7 @@ export function ChatArea({
                       onModelChange={stableOnModelChange}
                       onModelCatalogRefresh={onModelCatalogRefresh ? stableOnModelCatalogRefresh : undefined}
                       attachmentContentLoader={attachmentContentLoader}
+                      onReuseImageConfiguration={onReuseImageConfiguration ? stableOnReuseImageConfiguration : undefined}
                       onEditImageAttachment={editImageAttachmentHandler}
                       onExtendVideoAttachment={extendVideoAttachmentHandler}
                       onCycleMessageBranch={stableOnCycleMessageBranch}

@@ -242,6 +242,7 @@ export function mapServerMessage(
     msg.reasoningTokens = item.reasoningTokens ?? 0;
     msg.reasoningEffort = normalizeMessageReasoningEffort(item.reasoningEffort);
     msg.latencyMS = item.latencyMS ?? 0;
+    msg.points = item.points;
     msg.billingCost = item.billingCost;
     msg.knowledgeSources = item.knowledgeSources?.map((source) => ({
       file_name: source.fileName,

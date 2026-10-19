@@ -39,6 +39,7 @@ export type ChatSubmissionPlan = {
   selectedKnowledgeBaseIDs: string[];
   uiComponentIDs: number[];
   htmlVisualPromptEnabled: boolean;
+  pointQuoteFingerprint?: string;
   sanitizedOptions: ConversationOptions;
   submitTask: ChatSubmitTask;
   branchReason: ChatSubmissionBranchReason;
@@ -78,6 +79,7 @@ export function planChatSubmission(input: {
   modelOptions: ChatModelOption[];
   selectedPlatformModelName: string;
   options: ConversationOptions;
+  pointQuoteFingerprint?: string;
   selectedToolIDs: number[];
   selectedSkills: SkillSummaryDTO[];
   selectedKnowledgeBaseIDs: string[];
@@ -120,7 +122,7 @@ export function planChatSubmission(input: {
       input.visibleMessages,
     );
   const selectedModel =
-    input.modelOptions.find((item) => item.platformModelName === platformModelName) ?? null;
+    queuedSubmission?.modelOption ?? input.modelOptions.find((item) => item.platformModelName === platformModelName) ?? null;
   const branchReason = input.branchReason ?? "default";
   const concurrentBranchRun = branchReason === "retry" || branchReason === "edit";
   const targetConversationHasActiveStream = activeStreams.some((active) =>
@@ -214,6 +216,7 @@ export function planChatSubmission(input: {
       selectedKnowledgeBaseIDs,
       uiComponentIDs,
       htmlVisualPromptEnabled,
+      pointQuoteFingerprint: queuedSubmission?.pointQuoteFingerprint ?? input.pointQuoteFingerprint,
       sanitizedOptions,
       submitTask,
       branchReason,

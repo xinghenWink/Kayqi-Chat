@@ -18,6 +18,9 @@ type MessageUsageUpdate struct {
 
 // AssistantMessageCompletionUpdate 定义助手消息完成态更新字段。
 type AssistantMessageCompletionUpdate struct {
+	// PointsRunID 非空时，积分与图片附件在同一事务完成。
+	PointsRunID      string
+	PointsDelivered  int
 	ContentType      string
 	Content          string
 	ReasoningContent string

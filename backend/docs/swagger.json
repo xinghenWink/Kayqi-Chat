@@ -7076,6 +7076,232 @@
                 }
             }
         },
+        "/admin/points/prices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-points"
+                ],
+                "summary": "查询图片积分价格",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/PriceListResponseDoc"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-points"
+                ],
+                "summary": "创建或按版本更新图片价格",
+                "parameters": [
+                    {
+                        "description": "图片价格",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/PriceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/PriceResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/points/reservations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-points"
+                ],
+                "summary": "管理员查询图片任务预留及结算",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ReservationResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/points/transactions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-points"
+                ],
+                "summary": "管理员查询积分流水",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/TransactionResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/points/users/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-points"
+                ],
+                "summary": "管理员查询用户钱包",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WalletResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/points/users/{id}/adjust": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-points"
+                ],
+                "summary": "幂等调整用户永久积分并记录原因",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "积分增减",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/AdjustmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WalletResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/prompt-presets": {
             "get": {
                 "security": [
@@ -16775,6 +17001,130 @@
                 }
             }
         },
+        "/points/daily-grants/ensure": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "points"
+                ],
+                "summary": "幂等领取上海时区当日积分",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WalletResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/points/image-quote": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "points"
+                ],
+                "summary": "根据后端有效参数报价",
+                "parameters": [
+                    {
+                        "description": "图片配置",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/QuoteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/QuoteResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/points/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "points"
+                ],
+                "summary": "查询当前积分钱包",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WalletResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/points/transactions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "points"
+                ],
+                "summary": "查询当前用户积分流水",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/TransactionResponseDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/prompt-presets": {
             "get": {
                 "security": [
@@ -18467,6 +18817,28 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "AdjustmentRequest": {
+            "type": "object",
+            "required": [
+                "delta",
+                "reason",
+                "refNo"
+            ],
+            "properties": {
+                "delta": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "refNo": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 8
                 }
             }
         },
@@ -22081,6 +22453,9 @@
                 "status"
             ],
             "properties": {
+                "points": {
+                    "$ref": "#/definitions/MessagePointSummaryResponse"
+                },
                 "runID": {
                     "type": "string"
                 },
@@ -25386,6 +25761,10 @@
                 "prompt": {
                     "type": "string"
                 },
+                "quoteFingerprint": {
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "sourceMessagePublicID": {
                     "type": "string",
                     "maxLength": 32
@@ -25677,6 +26056,41 @@
                     "type": "string"
                 },
                 "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "MessagePointSummaryResponse": {
+            "type": "object",
+            "required": [
+                "delivered",
+                "model",
+                "requested",
+                "spent",
+                "status",
+                "taskType"
+            ],
+            "properties": {
+                "delivered": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "requested": {
+                    "type": "integer"
+                },
+                "spent": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "taskType": {
                     "type": "string"
                 }
             }
@@ -25982,6 +26396,9 @@
                 },
                 "platformModelName": {
                     "type": "string"
+                },
+                "points": {
+                    "$ref": "#/definitions/MessagePointSummaryResponse"
                 },
                 "processTrace": {
                     "$ref": "#/definitions/MessageProcessTraceResponse"
@@ -29003,6 +29420,160 @@
                 }
             }
         },
+        "Policy": {
+            "type": "object",
+            "required": [
+                "concurrentGlobal",
+                "concurrentPerUser",
+                "dailyBonus",
+                "enabled",
+                "maxCount",
+                "maxReferenceImages",
+                "signupBonus"
+            ],
+            "properties": {
+                "concurrentGlobal": {
+                    "type": "integer"
+                },
+                "concurrentPerUser": {
+                    "type": "integer"
+                },
+                "dailyBonus": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "maxCount": {
+                    "type": "integer"
+                },
+                "maxReferenceImages": {
+                    "type": "integer"
+                },
+                "signupBonus": {
+                    "type": "integer"
+                }
+            }
+        },
+        "Price": {
+            "type": "object",
+            "required": [
+                "enabled",
+                "id",
+                "model",
+                "pointsPerImage",
+                "quality",
+                "size",
+                "taskType",
+                "version"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "pointsPerImage": {
+                    "type": "integer"
+                },
+                "quality": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "string"
+                },
+                "taskType": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "PriceListResponseDoc": {
+            "type": "object",
+            "required": [
+                "data",
+                "errorMsg"
+            ],
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Price"
+                    }
+                },
+                "errorMsg": {
+                    "type": "string"
+                }
+            }
+        },
+        "PriceRequest": {
+            "type": "object",
+            "required": [
+                "enabled",
+                "model",
+                "pointsPerImage",
+                "quality",
+                "size",
+                "taskType",
+                "version"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "pointsPerImage": {
+                    "type": "integer",
+                    "maximum": 1000000000,
+                    "minimum": 0
+                },
+                "quality": {
+                    "type": "string",
+                    "maxLength": 32
+                },
+                "size": {
+                    "type": "string",
+                    "maxLength": 32
+                },
+                "taskType": {
+                    "type": "string",
+                    "enum": [
+                        "image_generation",
+                        "image_edit"
+                    ]
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "PriceResponseDoc": {
+            "type": "object",
+            "required": [
+                "data",
+                "errorMsg"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/Price"
+                },
+                "errorMsg": {
+                    "type": "string"
+                }
+            }
+        },
         "PromptPresetDataResponse": {
             "type": "object",
             "required": [
@@ -29972,6 +30543,88 @@
                 }
             }
         },
+        "Quote": {
+            "type": "object",
+            "required": [
+                "count",
+                "fingerprint",
+                "model",
+                "options",
+                "price",
+                "taskType",
+                "totalPoints"
+            ],
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "fingerprint": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "price": {
+                    "$ref": "#/definitions/Price"
+                },
+                "taskType": {
+                    "type": "string"
+                },
+                "totalPoints": {
+                    "type": "integer"
+                }
+            }
+        },
+        "QuoteRequest": {
+            "type": "object",
+            "required": [
+                "model",
+                "taskType"
+            ],
+            "properties": {
+                "fileIDs": {
+                    "type": "array",
+                    "maxItems": 16,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "model": {
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "options": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "taskType": {
+                    "type": "string",
+                    "enum": [
+                        "image_generation",
+                        "image_edit"
+                    ]
+                }
+            }
+        },
+        "QuoteResponseDoc": {
+            "type": "object",
+            "required": [
+                "data",
+                "errorMsg"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/Quote"
+                },
+                "errorMsg": {
+                    "type": "string"
+                }
+            }
+        },
         "RedeemCodeRequest": {
             "type": "object",
             "required": [
@@ -30507,6 +31160,106 @@
                 }
             }
         },
+        "Reservation": {
+            "type": "object",
+            "required": [
+                "conversationID",
+                "createdAt",
+                "dailyDate",
+                "deliveredCount",
+                "expiresAt",
+                "quoteJSON",
+                "requestHash",
+                "requestedCount",
+                "reservedDaily",
+                "reservedPermanent",
+                "runID",
+                "settledAt",
+                "spentPoints",
+                "status",
+                "userID"
+            ],
+            "properties": {
+                "conversationID": {
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "dailyDate": {
+                    "type": "string"
+                },
+                "deliveredCount": {
+                    "type": "integer"
+                },
+                "expiresAt": {
+                    "type": "string"
+                },
+                "quoteJSON": {
+                    "type": "string"
+                },
+                "requestHash": {
+                    "type": "string"
+                },
+                "requestedCount": {
+                    "type": "integer"
+                },
+                "reservedDaily": {
+                    "type": "integer"
+                },
+                "reservedPermanent": {
+                    "type": "integer"
+                },
+                "runID": {
+                    "type": "string"
+                },
+                "settledAt": {
+                    "type": "string"
+                },
+                "spentPoints": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "userID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ReservationPage": {
+            "type": "object",
+            "required": [
+                "results",
+                "total"
+            ],
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Reservation"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ReservationResponseDoc": {
+            "type": "object",
+            "required": [
+                "data",
+                "errorMsg"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/ReservationPage"
+                },
+                "errorMsg": {
+                    "type": "string"
+                }
+            }
+        },
         "ResetUpstreamCircuitResponseDoc": {
             "type": "object",
             "required": [
@@ -30768,6 +31521,9 @@
                 },
                 "platformModelName": {
                     "type": "string"
+                },
+                "points": {
+                    "$ref": "#/definitions/MessagePointSummaryResponse"
                 },
                 "provider": {
                     "type": "string"
@@ -32109,6 +32865,90 @@
             "properties": {
                 "data": {
                     "$ref": "#/definitions/ToolResponse"
+                },
+                "errorMsg": {
+                    "type": "string"
+                }
+            }
+        },
+        "Transaction": {
+            "type": "object",
+            "required": [
+                "actorID",
+                "createdAt",
+                "dailyDate",
+                "dailyDelta",
+                "id",
+                "permanentDelta",
+                "reason",
+                "refNo",
+                "runID",
+                "type",
+                "userID"
+            ],
+            "properties": {
+                "actorID": {
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "dailyDate": {
+                    "type": "string"
+                },
+                "dailyDelta": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "permanentDelta": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "refNo": {
+                    "type": "string"
+                },
+                "runID": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "userID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "TransactionPage": {
+            "type": "object",
+            "required": [
+                "results",
+                "total"
+            ],
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Transaction"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "TransactionResponseDoc": {
+            "type": "object",
+            "required": [
+                "data",
+                "errorMsg"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/TransactionPage"
                 },
                 "errorMsg": {
                     "type": "string"
@@ -35154,6 +35994,56 @@
             "properties": {
                 "data": {
                     "$ref": "#/definitions/UserSettingsResponse"
+                },
+                "errorMsg": {
+                    "type": "string"
+                }
+            }
+        },
+        "Wallet": {
+            "type": "object",
+            "required": [
+                "dailyDate",
+                "dailyPoints",
+                "frozenPoints",
+                "permanentPoints",
+                "policy",
+                "totalPoints",
+                "userID"
+            ],
+            "properties": {
+                "dailyDate": {
+                    "type": "string"
+                },
+                "dailyPoints": {
+                    "type": "integer"
+                },
+                "frozenPoints": {
+                    "type": "integer"
+                },
+                "permanentPoints": {
+                    "type": "integer"
+                },
+                "policy": {
+                    "$ref": "#/definitions/Policy"
+                },
+                "totalPoints": {
+                    "type": "integer"
+                },
+                "userID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "WalletResponseDoc": {
+            "type": "object",
+            "required": [
+                "data",
+                "errorMsg"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/Wallet"
                 },
                 "errorMsg": {
                     "type": "string"

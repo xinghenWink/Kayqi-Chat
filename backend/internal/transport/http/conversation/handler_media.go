@@ -240,6 +240,10 @@ func (h *Handler) streamMediaImage(c *gin.Context, taskType appconversation.Medi
 	}
 	req.ClientRunID = appconversation.EnsureMessageGenerationRunID(req.ClientRunID)
 	req.Options = sanitizeMessageOptions(req.Options)
+	if err := h.service.PreflightImagePoints(c.Request.Context(), userID, req.Model, string(taskType), req.Options, req.FileIDs, req.QuoteFingerprint); err != nil {
+		handleSendMessageError(c, err)
+		return
+	}
 	if err := h.service.EnsureGeneratedMediaStorage(c.Request.Context(), userID); err != nil {
 		handleSendMessageError(c, err)
 		return
@@ -272,6 +276,7 @@ func (h *Handler) streamMediaImage(c *gin.Context, taskType appconversation.Medi
 		session,
 		func(onEvent func(string, map[string]any) error) (*appconversation.SendMessageResult, error) {
 			return h.service.StreamMediaImage(generationCtx, appconversation.MediaImageInput{
+				QuoteFingerprint:      req.QuoteFingerprint,
 				UserID:                userID,
 				ConversationID:        conversation.ID,
 				RequestID:             middleware.MustRequestID(c),

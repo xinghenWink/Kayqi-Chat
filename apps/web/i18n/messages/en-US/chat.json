@@ -1183,5 +1183,35 @@
     "increase": "Increase",
     "decrease": "Decrease",
     "empty": "This model has no adjustable parameters."
+  },
+  "points": {
+    "modeLabel": "Conversation mode",
+    "chat": "Chat",
+    "image": "Image",
+    "noImageModel": "No image model is available",
+    "noEditModel": "No image editing model is available",
+    "addToEdit": "Add to edit",
+    "balance": "{points} points available",
+    "walletDetails": "Permanent {permanent} · Today {daily} · Reserved {frozen}",
+    "quoting": "Calculating points…",
+    "estimate": "{count} images · {points} points estimated",
+    "settled": "Delivered {count}/{requested} · {points} points spent",
+    "errors": {
+      "disabled": "Image generation is unavailable",
+      "insufficient": "Insufficient points. Claim today's allowance or contact an administrator.",
+      "price_missing": "This image configuration has no price. Choose another configuration or model.",
+      "price_changed": "The price or parameters changed. Refresh your selection and retry.",
+      "quote_required": "Wait for the quote before sending",
+      "invalid_request": "This image configuration is unavailable",
+      "policy_invalid": "Image generation is unavailable. Contact an administrator.",
+      "request_conflict": "This task already exists. Refresh to view it.",
+      "concurrent_limit": "Image generation is busy. Please retry later.",
+      "unavailable": "The points quote is unavailable. Please retry later."
+    },
+    "reuseUnavailable": "The original model or reference images are unavailable.",
+    "reuseConfiguration": "Reuse configuration",
+    "regenerateTitle": "Generate images again?",
+    "regenerateDescription": "Generate {count} images at the current price, reserving up to {points} points. Only delivered images are charged.",
+    "confirmRegenerate": "Generate at current price"
   }
 }

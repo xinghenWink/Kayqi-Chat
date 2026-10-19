@@ -44,6 +44,11 @@ import {
 } from "@/features/chat/hooks/use-chat-composer-state";
 import { useChatData } from "@/features/chat/hooks/use-chat-data";
 import { useChatModelOptions } from "@/features/chat/hooks/use-chat-model-options";
+import { useChatComposeMode } from "@/features/chat/hooks/use-chat-compose-mode";
+import { useChatImageReuse } from "@/features/chat/hooks/use-chat-image-reuse";
+import { useChatPoints } from "@/features/chat/hooks/use-chat-points";
+import { useFeature } from "@/shared/capabilities";
+import { resolveApiBaseURL } from "@/shared/api/http-client";
 import { useChatRuntime } from "@/features/chat/hooks/use-chat-runtime";
 import { useChatScreenshot } from "@/features/chat/hooks/use-chat-screenshot";
 import { useChatLoadedConversation } from "@/features/chat/hooks/use-chat-loaded-conversation";
@@ -102,10 +107,11 @@ export function AppChatArea() {
   }, [newConversationRevision, routeConversationID]);
 
   React.useEffect(() => {
-    if (routeConversationID) {
+    // 新建会话拿到正式 URL 后，仍保留首轮输入的模式与参数继承标记。
+    if (routeConversationID && routeConversationID !== locallyCreatedConversationID) {
       setLocallyCreatedConversationID(null);
     }
-  }, [routeConversationID]);
+  }, [locallyCreatedConversationID, routeConversationID]);
 
   React.useEffect(() => {
     setNewConversationOverride((prev) =>
@@ -213,7 +219,7 @@ export function AppChatArea() {
   );
 
   const {
-    modelOptions,
+    modelOptions: allModelOptions,
     refreshModelCatalog,
     refreshModelOption,
     modelsLoading,
@@ -242,6 +248,15 @@ export function AppChatArea() {
     newConversationDefaultModel: newConversationProject?.defaultModel ?? "",
     newConversationDefaultsPending,
     resetToken: newConversationRevision,
+  });
+  const imagePointsRequired = useFeature("billingGating");
+  // 新草稿使用稳定作用域以便刷新恢复，首次发送后再继承到实际会话 ID。
+  const composeScope = `${resolveApiBaseURL()}:${user?.publicID ?? ""}:${conversationID ?? "new:composer"}`;
+  const { composeMode, changeComposeMode, modelOptions, imageAvailable } = useChatComposeMode({
+    models: allModelOptions, selectedModel: selectedPlatformModelName, setSelectedModel: setSelectedPlatformModelName,
+    inheritNewConversation: locallyCreatedConversationID === conversationID && Boolean(conversationID),
+    scope: composeScope, initialImage: messages.filter((message) => message.role === "assistant").at(-1)?.contentType === "image",
+    ready: !conversationID || messageDataConversationID === conversationID, temporary: temporaryMode, requirePolicy: imagePointsRequired,
   });
   const {
     conversationKey,
@@ -275,6 +290,7 @@ export function AppChatArea() {
     chatPreferencesLoaded,
     reuseModelOptions,
     refreshModelOption,
+    storageScope: `${composeScope}:${composeMode}`,
   });
   const {
     selections: controlSelections,
@@ -422,6 +438,8 @@ export function AppChatArea() {
   // Interactive component state lives above both runtimes: persistent chats write
   // it per message, temporary chats only send it with the next turn.
   const uiBlockState = useChatUIBlockStateRuntime();
+  const imagePointState = useChatPoints({ active: imagePointsRequired && composeMode === "image" && !temporaryMode,
+    scope: composeScope, model: selectedPlatformModelName, options: requestOptions, attachments });
   const {
     currentLeafMessage,
     onCycleMessageBranch,
@@ -444,6 +462,7 @@ export function AppChatArea() {
     visibleMessages,
     isConversationMode,
   } = useChatRuntime({
+    pointQuoteFingerprint: imagePointState.quote?.fingerprint,
     conversationID,
     resetToken: newConversationRevision,
     messages,
@@ -482,6 +501,14 @@ export function AppChatArea() {
     resumingRunID,
     collectUIStates: uiBlockState.collectTurnUIStates,
   });
+  const imageReuse = useChatImageReuse({ messages: visibleMessages, models: allModelOptions, scope: composeScope, composeMode,
+    selectedModel: selectedPlatformModelName, changeMode: changeComposeMode, setOptions: setModelOptions, setDraft,
+    setAttachments, releaseAttachments, attachments, ready: chatPreferencesLoaded });
+  const reuseImageConfiguration = React.useCallback((message: ChatAreaMessage) => { imagePointState.refreshQuote(); imageReuse.reuse(message); }, [imagePointState.refreshQuote, imageReuse.reuse]);
+  const retryAssistantWithQuote = React.useCallback((message: ChatAreaMessage) => {
+    if (imagePointsRequired && message.points?.options) { imagePointState.refreshQuote(); imageReuse.reuse(message, true); return; }
+    return onRetryAssistantMessage(message);
+  }, [imagePointsRequired, imagePointState.refreshQuote, imageReuse.reuse, onRetryAssistantMessage]);
   const generating = sending;
   const uploadDropDisabled = loading || uploading;
   const onStopActiveMessage = React.useCallback(() => {
@@ -551,7 +578,8 @@ export function AppChatArea() {
   } = useChatMediaAttachmentActions({
     attachments,
     maxFilesPerMessage,
-    modelOptions,
+    modelOptions: allModelOptions,
+    enterImageMode: changeComposeMode,
     selectedModel,
     selectedPlatformModelName,
     setAttachments,
@@ -761,6 +789,7 @@ export function AppChatArea() {
     Boolean(conversationID) &&
     (loading || messageDataConversationID !== conversationID);
   const chatInputProps = {
+    composeMode, onComposeModeChange: changeComposeMode, imageAvailable, imagePointsRequired, imagePointState,
     draft,
     loading: composerLoading,
     sending: composerSending,
@@ -895,7 +924,7 @@ export function AppChatArea() {
                   messageContentRef={messageContentRef}
                   onScroll={onScroll}
                   onRetryUserMessage={temporaryMode ? temporaryRuntime.onRetryUserMessage : onRetryUserMessage}
-                  onRetryAssistantMessage={temporaryMode ? temporaryRuntime.onRetryAssistantMessage : onRetryAssistantMessage}
+                  onRetryAssistantMessage={temporaryMode ? temporaryRuntime.onRetryAssistantMessage : retryAssistantWithQuote}
                   onContinueAssistantMessage={temporaryMode ? undefined : onContinueAssistantMessage}
                   onEditAssistantMessage={temporaryMode ? temporaryRuntime.onEditAssistantMessage : onEditAssistantMessage}
                   onEditUserMessage={temporaryMode ? temporaryRuntime.onEditUserMessage : onEditUserMessage}
@@ -905,6 +934,7 @@ export function AppChatArea() {
                   selectedPlatformModelName={selectedPlatformModelName}
                   onModelChange={setSelectedPlatformModelName}
                   onModelCatalogRefresh={refreshModelCatalogForComposer}
+                  onReuseImageConfiguration={reuseImageConfiguration}
                   onEditImageAttachment={onEditGeneratedImageAttachment}
                   onExtendVideoAttachment={onExtendGeneratedVideoAttachment}
                   onOpenCodeArtifact={artifactWorkspace.openArtifact}
@@ -992,6 +1022,17 @@ export function AppChatArea() {
         onCopy={screenshot.copyPreviewToClipboard}
       />
 
+      <AlertDialog open={imageReuse.confirmationOpen} onOpenChange={(open) => { if (!open) imageReuse.closeConfirmation(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>{t("points.regenerateTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{imagePointState.quote && !imageReuse.applying ? t("points.regenerateDescription", { count: imagePointState.quote.count, points: imagePointState.quote.totalPoints }) : t("points.quoting")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>{tRecent("dialogs.cancel")}</AlertDialogCancel>
+            <AlertDialogAction disabled={imageReuse.applying || imagePointState.loading || !imagePointState.quote || !imagePointState.wallet || imagePointState.wallet.totalPoints < imagePointState.quote.totalPoints || sending}
+              onClick={() => { imageReuse.closeConfirmation(); void onSendMessage(); }}>{t("points.confirmRegenerate")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {canOperateConversation ? (
         <>
           <ConversationShareDialog

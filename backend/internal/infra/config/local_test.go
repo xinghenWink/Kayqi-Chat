@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -57,7 +58,8 @@ func TestApplyLocalModeGeneratesPerInstallSecretsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
+	// Windows 的 Mode().Perm() 不表达 POSIX 权限位；其余文件内容校验照常执行。
+	if perm := info.Mode().Perm(); runtime.GOOS != "windows" && perm != 0o600 {
 		t.Fatalf("secrets file must be 0600, got %o", perm)
 	}
 

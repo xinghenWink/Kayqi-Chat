@@ -44,6 +44,15 @@ func (s settingSpec) seedSetting() domainsettings.SystemSetting {
 }
 
 var settingSpecs = []settingSpec{
+	// 图片积分独立于货币余额；关闭后公开图片入口不可调用。
+	{Namespace: "points", Key: "enabled", ValueType: "bool", Default: "false", Description: "启用图片积分与公开图片任务", Validate: boolValue()},
+	{Namespace: "points", Key: "signup_bonus", ValueType: "int", Default: "0", Description: "自助注册永久积分奖励", Validate: intRange(0, 1000000000)},
+	{Namespace: "points", Key: "daily_bonus", ValueType: "int", Default: "0", Description: "上海时区当日有效的每日积分", Validate: intRange(0, 1000000000)},
+	{Namespace: "points", Key: "image_max_count", ValueType: "int", Default: "4", Description: "图片单次输出张数上限", Validate: intRange(1, 4)},
+	{Namespace: "points", Key: "image_max_reference_images", ValueType: "int", Default: "4", Description: "图片编辑参考图上限", Validate: intRange(1, 16)},
+	{Namespace: "points", Key: "image_concurrent_per_user", ValueType: "int", Default: "1", Description: "每用户图片执行并发", Validate: intRange(1, 1)},
+	{Namespace: "points", Key: "image_concurrent_global", ValueType: "int", Default: "1", Description: "全站图片执行并发", Validate: intRange(1, 16)},
+
 	// 认证配置
 	{Namespace: "auth", Key: "token_ttl_hours", ValueType: "int", Default: "24", Description: "Access Token 有效期(小时)",
 		Validate: intRange(1, 168), Apply: applyField(func(c *config.Config) *int { return &c.TokenTTLHours }, toInt)},

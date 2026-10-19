@@ -14,6 +14,7 @@ import (
 	appupload "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/upload"
 	domainbilling "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/billing"
 	model "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/conversation"
+	p "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/points"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/config"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/shared/lifecycle"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/shared/response"
@@ -98,6 +99,15 @@ type sendMessageErrorStatus struct {
 }
 
 var sendMessageErrorStatuses = []sendMessageErrorStatus{
+	{err: p.ErrDisabled, status: http.StatusServiceUnavailable},
+	{err: p.ErrInsufficient, status: http.StatusPaymentRequired},
+	{err: p.ErrConcurrent, status: http.StatusTooManyRequests},
+	{err: p.ErrConflict, status: http.StatusConflict},
+	{err: p.ErrPriceChanged, status: http.StatusConflict},
+	{err: p.ErrPriceMissing, status: http.StatusBadRequest},
+	{err: p.ErrQuoteRequired, status: http.StatusBadRequest},
+	{err: p.ErrInvalid, status: http.StatusBadRequest},
+	{err: p.ErrPolicy, status: http.StatusBadRequest},
 	{err: appconversation.ErrConversationNotFound, status: http.StatusNotFound},
 	{err: appconversation.ErrInvalidFileReference, status: http.StatusBadRequest},
 	{err: appconversation.ErrFileNotFound, status: http.StatusNotFound},

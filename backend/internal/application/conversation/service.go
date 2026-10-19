@@ -14,6 +14,7 @@ import (
 	appembedding "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/embedding"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/extraction"
 	appstorage "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/objectstorage"
+	apppoints "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/points"
 	appprocessing "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/processing"
 	apprag "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/rag"
 	appskill "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/skill"
@@ -125,6 +126,7 @@ type llmGateway interface {
 
 // Service 封装会话业务能力。
 type Service struct {
+	pointsSvc       *apppoints.Service
 	cfg             *config.Runtime
 	repo            repository.ConversationRepository
 	cache           repository.UserSettingCacheRepository

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { parseImageParameterPolicy } from "@/features/chat/model/image-parameter-policy";
 import * as React from "react";
 import { sanitizeConversationOptions } from "@/features/chat/model/conversation-options";
 import {
@@ -354,6 +355,7 @@ function toChatModelOption(
   const protocols = parseProtocolsJSON(item.protocolsJSON);
   const nativeTools = resolveNativeTools(item.capabilitiesJSON);
   return {
+    imageParameters: parseImageParameterPolicy(item.capabilitiesJSON),
     platformModelName: item.platformModelName,
     icon: item.icon,
     vendor: item.vendor,

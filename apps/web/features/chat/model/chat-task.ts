@@ -88,7 +88,7 @@ export function resolveChatSubmitDecision(
   const mp4AttachmentCount = attachments.filter(isMP4Attachment).length;
   const videoAttachmentCount = attachments.filter(isVideoAttachment).length;
   const nonImageAttachmentCount = attachmentCount - imageAttachmentCount;
-  const supportsChat = kinds.size === 0 || kinds.has("chat") || kinds.has("audio");
+  const supportsChat = model?.composeMode !== "image" && (kinds.size === 0 || kinds.has("chat") || kinds.has("audio"));
   const supportsImageGeneration = kinds.has("image_gen");
   const supportsImageEdit = kinds.has("image_edit");
   const supportsVideoGeneration = kinds.has("video_gen");
@@ -103,6 +103,8 @@ export function resolveChatSubmitDecision(
     supportsVideoGeneration,
     supportsVideoExtension,
   };
+  // 聊天模式图片作为理解输入，不被双能力模型自动改成编辑任务。
+  if (model?.composeMode === "chat" && supportsChat) return buildDecision("chat", null, baseDecision);
   const requestedType = requestedResponseType(options);
 
   // Video attachments extend the video on models that support it; chat models otherwise receive them as

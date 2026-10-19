@@ -108,6 +108,9 @@ func (s *Service) normalizeAssistantGeneratedImages(ctx context.Context, input a
 
 // saveAssistantImages 统一保存助手生成的图片，并构造消息附件快照。
 func (s *Service) saveAssistantImages(ctx context.Context, input assistantImageSaveInput) (*assistantImageContentNormalization, error) {
+	if s.pointsSvc != nil && len(input.Images) > 0 {
+		return nil, ErrInvalidMediaGenerationTask
+	}
 	if len(input.Images) == 0 {
 		return nil, nil
 	}

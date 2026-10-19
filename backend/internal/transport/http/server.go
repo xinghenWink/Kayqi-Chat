@@ -28,6 +28,7 @@ import (
 	memoryhttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/memory"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/middleware"
 	personalproviderhttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/personalprovider"
+	pointshttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/points"
 	promptpresethttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/promptpreset"
 	settingshttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/settings"
 	skillhttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/skill"
@@ -61,6 +62,7 @@ type Modules struct {
 	Conversation      *conversationhttp.Module
 	MCP               *mcphttp.Module
 	Memory            *memoryhttp.Module
+	Points            *pointshttp.Module
 	Billing           *billinghttp.Module
 	Admin             *adminhttp.Module
 	ContentModeration *contentmoderationhttp.Module
@@ -82,7 +84,7 @@ type Modules struct {
 
 // hasAdminRoutes 报告是否存在需要注册到 /admin 路由组的模块；新增管理端模块时须同步更新此处。
 func (m Modules) hasAdminRoutes() bool {
-	return m.Admin != nil ||
+	return m.Points != nil || m.Admin != nil ||
 		m.Auth != nil ||
 		m.Billing != nil ||
 		m.Channel != nil ||
@@ -225,6 +227,9 @@ func NewEngine(cfg *config.Runtime, log *zap.Logger, modules Modules, hc HealthC
 	if modules.MCP != nil {
 		modules.MCP.RegisterRoutes(authRequired)
 	}
+	if modules.Points != nil {
+		modules.Points.RegisterRoutes(authRequired, gate)
+	}
 	if modules.Billing != nil {
 		modules.Billing.RegisterRoutes(authRequired, gate)
 	}
@@ -266,6 +271,9 @@ func NewEngine(cfg *config.Runtime, log *zap.Logger, modules Modules, hc HealthC
 		}
 		if modules.ContentModeration != nil {
 			modules.ContentModeration.RegisterRoutes(adminGroup, gate)
+		}
+		if modules.Points != nil {
+			modules.Points.RegisterAdminRoutes(adminGroup, gate)
 		}
 		if modules.Billing != nil {
 			modules.Billing.RegisterAdminRoutes(adminGroup, gate)

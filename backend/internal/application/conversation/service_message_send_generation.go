@@ -99,6 +99,7 @@ func (s *Service) prepareRouteGeneration(ctx context.Context, input routeGenerat
 		CatalogReasoning:      route.CatalogReasoning,
 		Controls:              messageInput.Controls,
 	})
+	filteredOptions = s.textOnlyCallOptions(filteredOptions)
 	filteredOptions = withMessageRouteReasoningPassbackOptions(
 		filteredOptions,
 		messageInput.Options,
@@ -296,6 +297,9 @@ func (c *generationCall) finalizeNonStreamingOutput(output *llm.GenerateOutput, 
 		return nil
 	}
 	r := c.runner
+	if r.service.pointsSvc != nil && len(output.GeneratedImages) > 0 {
+		return ErrInvalidMediaGenerationTask
+	}
 	if r.traceRecorder != nil && r.traceRecorder.enabled() && r.traceRecorder.onEvent != nil &&
 		(output.Reasoning != nil || len(output.ServerToolCalls) > 0) {
 		c.observation.markObservable()
@@ -338,6 +342,9 @@ func (c *generationCall) handleStreamEvent(generationCtx context.Context, curren
 				return err
 			}
 		}
+	}
+	if event.GeneratedImage != nil && r.service.pointsSvc != nil {
+		return ErrInvalidMediaGenerationTask
 	}
 	if event.GeneratedImage != nil {
 		r.attemptHadSideEffect = true

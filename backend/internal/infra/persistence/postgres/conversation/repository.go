@@ -13,8 +13,10 @@ import (
 	domainuser "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/user"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/dberror"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/models"
+	pointsrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/points"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/sqlitevec"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/vectorutil"
+	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/pkg/textutil"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/repository"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -1349,6 +1351,23 @@ func (r *Repo) CompleteAssistantMessageWithAttachments(
 		if assistantCompletion.ReasoningEffort != nil {
 			updates["reasoning_effort"] = *assistantCompletion.ReasoningEffort
 		}
+		if assistantCompletion.PointsRunID != "" {
+			settlement, err := pointsrepo.SettleTx(tx, assistantCompletion.PointsRunID, assistantCompletion.PointsDelivered, time.Now())
+			if err != nil {
+				return err
+			}
+			if settlement.DeliveredCount != assistantCompletion.PointsDelivered || assistantCompletion.PointsDelivered != len(assistantAttachments) {
+				return repository.ErrConflict
+			}
+			updates["points_spent"] = settlement.SpentPoints
+			updates["points_delivered"] = settlement.DeliveredCount
+			updates["points_requested"] = settlement.RequestedCount
+			updates["points_status"] = settlement.Status
+			updates["points_options_json"] = settlement.QuoteJSON
+			if err := tx.Model(&models.FileObject{}).Where("generation_run_id = ? AND purpose = ? AND status = ?", assistantCompletion.PointsRunID, "generated_image_pending", "active").Update("purpose", "generated_image").Error; err != nil {
+				return err
+			}
+		}
 		return tx.Model(&models.Message{}).
 			Where("id = ?", assistantMessageID).
 			Updates(updates).Error
@@ -1408,6 +1427,23 @@ func (r *Repo) CompleteAssistantMessageWithGeneratedAttachments(
 		}
 		if assistantCompletion.ReasoningEffort != nil {
 			updates["reasoning_effort"] = *assistantCompletion.ReasoningEffort
+		}
+		if assistantCompletion.PointsRunID != "" {
+			settlement, err := pointsrepo.SettleTx(tx, assistantCompletion.PointsRunID, assistantCompletion.PointsDelivered, time.Now())
+			if err != nil {
+				return err
+			}
+			if settlement.DeliveredCount != assistantCompletion.PointsDelivered || assistantCompletion.PointsDelivered != len(assistantAttachments) {
+				return repository.ErrConflict
+			}
+			updates["points_spent"] = settlement.SpentPoints
+			updates["points_delivered"] = settlement.DeliveredCount
+			updates["points_requested"] = settlement.RequestedCount
+			updates["points_status"] = settlement.Status
+			updates["points_options_json"] = settlement.QuoteJSON
+			if err := tx.Model(&models.FileObject{}).Where("generation_run_id = ? AND purpose = ? AND status = ?", assistantCompletion.PointsRunID, "generated_image_pending", "active").Update("purpose", "generated_image").Error; err != nil {
+				return err
+			}
 		}
 		return tx.Model(&models.Message{}).
 			Where("id = ?", assistantMessageID).
@@ -2444,6 +2480,7 @@ func (r *Repo) ListFileObjectsByUserWithFilter(ctx context.Context, input reposi
 
 	query := r.db.WithContext(ctx).
 		Model(&models.FileObject{}).
+		Where("purpose <> ?", "generated_image_pending").
 		Where("user_id = ? AND status = ?", input.UserID, "active")
 	normalizedQuery := strings.TrimSpace(input.SearchQuery)
 	if normalizedQuery != "" {
@@ -2490,6 +2527,7 @@ func (r *Repo) GetActiveFileObjectsByIDs(ctx context.Context, userID uint, fileI
 		return []domainconversation.FileObject{}, nil
 	}
 	if err := r.db.WithContext(ctx).
+		Where("purpose <> ?", "generated_image_pending").
 		Where("user_id = ? AND status = ? AND file_id IN ?", userID, "active", fileIDs).
 		Find(&items).Error; err != nil {
 		return nil, dberror.Translate(err)
@@ -2504,6 +2542,7 @@ func (r *Repo) GetActiveFileProcessingStatusesByIDs(ctx context.Context, userID 
 		return []domainconversation.FileObject{}, nil
 	}
 	if err := r.db.WithContext(ctx).
+		Where("purpose <> ?", "generated_image_pending").
 		Select(
 			"file_id", "file_name", "mime_type", "detected_mime", "file_category", "storage_path", "status",
 			"processing_status", "processing_ready", "processing_error_code", "processing_error_message",
@@ -2522,6 +2561,7 @@ func (r *Repo) GetActiveFileProcessingStatusesByIDs(ctx context.Context, userID 
 func (r *Repo) GetActiveFileObjectByID(ctx context.Context, userID uint, fileID string) (*domainconversation.FileObject, error) {
 	var item models.FileObject
 	if err := r.db.WithContext(ctx).
+		Where("purpose <> ?", "generated_image_pending").
 		Where("user_id = ? AND status = ? AND file_id = ?", userID, "active", fileID).
 		First(&item).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -2537,6 +2577,7 @@ func (r *Repo) GetActiveFileObjectByID(ctx context.Context, userID uint, fileID 
 func (r *Repo) RenameFileObjectByID(ctx context.Context, userID uint, fileID string, fileName string) (*domainconversation.FileObject, error) {
 	var item models.FileObject
 	if err := r.db.WithContext(ctx).
+		Where("purpose <> ?", "generated_image_pending").
 		Where("user_id = ? AND status = ? AND file_id = ?", userID, "active", fileID).
 		First(&item).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -2546,7 +2587,8 @@ func (r *Repo) RenameFileObjectByID(ctx context.Context, userID uint, fileID str
 	}
 
 	item.FileName = fileName
-	if err := r.db.WithContext(ctx).Save(&item).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Where("purpose <> ?", "generated_image_pending").Save(&item).Error; err != nil {
 		return nil, dberror.Translate(err)
 	}
 	result := toFileObjectDomain(item)
@@ -2557,6 +2599,7 @@ func (r *Repo) RenameFileObjectByID(ctx context.Context, userID uint, fileID str
 func (r *Repo) UpdateFileObjectRAGOptOut(ctx context.Context, userID uint, fileID string, ragOptOut bool) (*domainconversation.FileObject, error) {
 	var item models.FileObject
 	if err := r.db.WithContext(ctx).
+		Where("purpose <> ?", "generated_image_pending").
 		Where("user_id = ? AND status = ? AND file_id = ?", userID, "active", fileID).
 		First(&item).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -2565,7 +2608,8 @@ func (r *Repo) UpdateFileObjectRAGOptOut(ctx context.Context, userID uint, fileI
 		return nil, dberror.Translate(err)
 	}
 	item.RAGOptOut = ragOptOut
-	if err := r.db.WithContext(ctx).Save(&item).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Where("purpose <> ?", "generated_image_pending").Save(&item).Error; err != nil {
 		return nil, dberror.Translate(err)
 	}
 	result := toFileObjectDomain(item)
@@ -2576,6 +2620,7 @@ func (r *Repo) UpdateFileObjectRAGOptOut(ctx context.Context, userID uint, fileI
 func (r *Repo) TouchFileObjectLastAccessedAt(ctx context.Context, userID uint, fileID string, accessedAt time.Time) error {
 	return dberror.Translate(r.db.WithContext(ctx).
 		Model(&models.FileObject{}).
+		Where("purpose <> ?", "generated_image_pending").
 		Where("user_id = ? AND status = ? AND file_id = ?", userID, "active", fileID).
 		Update("last_accessed_at", accessedAt).Error)
 }
@@ -2589,6 +2634,7 @@ func (r *Repo) GetLatestActiveFileObjectBySHA(
 ) (*domainconversation.FileObject, error) {
 	var item models.FileObject
 	if err := r.db.WithContext(ctx).
+		Where("purpose <> ?", "generated_image_pending").
 		Where("user_id = ? AND status = ? AND sha256 = ? AND size_bytes = ?", userID, "active", sha256Value, sizeBytes).
 		Order("id DESC").
 		Limit(1).
@@ -3953,27 +3999,28 @@ func toUserDomain(item models.User) domainuser.User {
 
 func toMessageDomain(item models.Message) domainconversation.Message {
 	return domainconversation.Message{
-		ID:                       item.ID,
-		ConversationID:           item.ConversationID,
-		UserID:                   item.UserID,
-		PublicID:                 item.PublicID,
-		ParentMessageID:          item.ParentMessageID,
-		RunID:                    item.RunID,
-		Role:                     item.Role,
-		ContentType:              item.ContentType,
-		Content:                  item.Content,
-		ReasoningContent:         item.ReasoningContent,
-		BranchReason:             item.BranchReason,
-		SourceMessageID:          item.SourceMessageID,
-		TokenUsage:               item.TokenUsage,
-		InputTokens:              item.InputTokens,
-		OutputTokens:             item.OutputTokens,
-		CacheReadTokens:          item.CacheReadTokens,
-		CacheWriteTokens:         item.CacheWriteTokens,
-		ReasoningTokens:          item.ReasoningTokens,
-		ReasoningEffort:          item.ReasoningEffort,
-		LatencyMS:                item.LatencyMS,
-		BilledCurrency:           item.BilledCurrency,
+		ID:               item.ID,
+		ConversationID:   item.ConversationID,
+		UserID:           item.UserID,
+		PublicID:         item.PublicID,
+		ParentMessageID:  item.ParentMessageID,
+		RunID:            item.RunID,
+		Role:             item.Role,
+		ContentType:      item.ContentType,
+		Content:          item.Content,
+		ReasoningContent: item.ReasoningContent,
+		BranchReason:     item.BranchReason,
+		SourceMessageID:  item.SourceMessageID,
+		TokenUsage:       item.TokenUsage,
+		InputTokens:      item.InputTokens,
+		OutputTokens:     item.OutputTokens,
+		CacheReadTokens:  item.CacheReadTokens,
+		CacheWriteTokens: item.CacheWriteTokens,
+		ReasoningTokens:  item.ReasoningTokens,
+		ReasoningEffort:  item.ReasoningEffort,
+		LatencyMS:        item.LatencyMS,
+		BilledCurrency:   item.BilledCurrency,
+		PointsSpent:      item.PointsSpent, PointsDelivered: item.PointsDelivered, PointsRequested: item.PointsRequested, PointsStatus: item.PointsStatus, PointsOptionsJSON: item.PointsOptionsJSON,
 		BilledNanousd:            item.BilledNanousd,
 		PricingSnapshot:          item.PricingSnapshot,
 		Status:                   item.Status,
@@ -4007,26 +4054,27 @@ func toMessageModel(item *domainconversation.Message) models.Message {
 		return models.Message{}
 	}
 	return models.Message{
-		ConversationID:           item.ConversationID,
-		UserID:                   item.UserID,
-		PublicID:                 item.PublicID,
-		ParentMessageID:          item.ParentMessageID,
-		RunID:                    item.RunID,
-		Role:                     item.Role,
-		ContentType:              item.ContentType,
-		Content:                  item.Content,
-		ReasoningContent:         item.ReasoningContent,
-		BranchReason:             item.BranchReason,
-		SourceMessageID:          item.SourceMessageID,
-		TokenUsage:               item.TokenUsage,
-		InputTokens:              item.InputTokens,
-		OutputTokens:             item.OutputTokens,
-		CacheReadTokens:          item.CacheReadTokens,
-		CacheWriteTokens:         item.CacheWriteTokens,
-		ReasoningTokens:          item.ReasoningTokens,
-		ReasoningEffort:          item.ReasoningEffort,
-		LatencyMS:                item.LatencyMS,
-		BilledCurrency:           item.BilledCurrency,
+		ConversationID:   item.ConversationID,
+		UserID:           item.UserID,
+		PublicID:         item.PublicID,
+		ParentMessageID:  item.ParentMessageID,
+		RunID:            item.RunID,
+		Role:             item.Role,
+		ContentType:      item.ContentType,
+		Content:          item.Content,
+		ReasoningContent: item.ReasoningContent,
+		BranchReason:     item.BranchReason,
+		SourceMessageID:  item.SourceMessageID,
+		TokenUsage:       item.TokenUsage,
+		InputTokens:      item.InputTokens,
+		OutputTokens:     item.OutputTokens,
+		CacheReadTokens:  item.CacheReadTokens,
+		CacheWriteTokens: item.CacheWriteTokens,
+		ReasoningTokens:  item.ReasoningTokens,
+		ReasoningEffort:  item.ReasoningEffort,
+		LatencyMS:        item.LatencyMS,
+		BilledCurrency:   item.BilledCurrency,
+		PointsSpent:      item.PointsSpent, PointsDelivered: item.PointsDelivered, PointsRequested: item.PointsRequested, PointsStatus: item.PointsStatus, PointsOptionsJSON: item.PointsOptionsJSON,
 		BilledNanousd:            item.BilledNanousd,
 		PricingSnapshot:          item.PricingSnapshot,
 		Status:                   item.Status,
@@ -4318,9 +4366,9 @@ func toConversationMessageTraceModel(item *domainconversation.MessageTrace) mode
 		RoundID:         item.RoundID,
 		ParentEventID:   item.ParentEventID,
 		Title:           item.Title,
-		Summary:         item.Summary,
-		ContentMarkdown: item.ContentMarkdown,
-		PayloadJSON:     item.PayloadJSON,
+		Summary:         textutil.SanitizeForTextColumn(item.Summary),
+		ContentMarkdown: textutil.SanitizeForTextColumn(item.ContentMarkdown),
+		PayloadJSON:     textutil.SanitizeForTextColumn(item.PayloadJSON),
 		Seq:             item.Seq,
 		StartedAt:       startedAt,
 		EndedAt:         item.EndedAt,
@@ -4379,9 +4427,9 @@ func toConversationMessageTraceEventModel(item *domainconversation.MessageTraceE
 		ParentEventID:   item.ParentEventID,
 		Status:          item.Status,
 		Title:           item.Title,
-		Summary:         item.Summary,
-		ContentMarkdown: item.ContentMarkdown,
-		PayloadJSON:     item.PayloadJSON,
+		Summary:         textutil.SanitizeForTextColumn(item.Summary),
+		ContentMarkdown: textutil.SanitizeForTextColumn(item.ContentMarkdown),
+		PayloadJSON:     textutil.SanitizeForTextColumn(item.PayloadJSON),
 		Seq:             item.Seq,
 		StartedAt:       startedAt,
 		EndedAt:         item.EndedAt,
@@ -4414,9 +4462,9 @@ func toConversationToolCallModel(item *domainconversation.ToolCall) models.ChatR
 		MCPServerName:  item.MCPServerName,
 		Status:         item.Status,
 		LatencyMS:      item.LatencyMS,
-		InputJSON:      item.InputJSON,
-		OutputJSON:     item.OutputJSON,
-		ErrorJSON:      item.ErrorJSON,
+		InputJSON:      textutil.SanitizeForTextColumn(item.InputJSON),
+		OutputJSON:     textutil.SanitizeForTextColumn(item.OutputJSON),
+		ErrorJSON:      textutil.SanitizeForTextColumn(item.ErrorJSON),
 		StartedAt:      startedAt,
 	}
 }
@@ -4472,6 +4520,7 @@ func toFileObjectDomain(item models.FileObject) domainconversation.FileObject {
 		FileID:                 item.FileID,
 		UserID:                 item.UserID,
 		Purpose:                item.Purpose,
+		GenerationRunID:        item.GenerationRunID,
 		FileName:               item.FileName,
 		MimeType:               item.MimeType,
 		DetectedMIME:           item.DetectedMIME,
@@ -4528,6 +4577,7 @@ func toFileObjectModel(item *domainconversation.FileObject) models.FileObject {
 		FileID:                 item.FileID,
 		UserID:                 item.UserID,
 		Purpose:                item.Purpose,
+		GenerationRunID:        item.GenerationRunID,
 		FileName:               item.FileName,
 		MimeType:               item.MimeType,
 		DetectedMIME:           item.DetectedMIME,

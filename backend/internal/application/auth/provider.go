@@ -1187,9 +1187,14 @@ func (s *Service) resolveProviderUser(ctx context.Context, input resolveProvider
 		ProfileJSON:         input.ProfileJSON,
 		LinkedAt:            now,
 	})
+	signupBonus, err := s.signupPoints(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if err = s.createWithCredentialAndIdentityUsingAvailableUsername(ctx, repository.CreateWithCredentialAndIdentityInput{
 		CreateWithCredentialInput: repository.CreateWithCredentialInput{
-			User: userItem,
+			SignupPoints: signupBonus,
+			User:         userItem,
 			Credential: domainuser.Credential{
 				PasswordHash:      string(passwordHash),
 				PasswordAlgo:      "bcrypt",

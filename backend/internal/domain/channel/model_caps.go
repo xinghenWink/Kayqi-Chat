@@ -209,6 +209,9 @@ func ResolveModelCapsFromCapabilitiesWithFallback(modelName string, capabilities
 // 并校验显式声明的推理强度能力（错误为 ErrInvalidReasoning* 哨兵，便于应用层区分错误码）。
 // 未配置相关字段时不干涉其他能力配置。
 func ValidateModelCapsOverrides(capabilitiesJSON string) error {
+	if _, err := ParseImageParameterPolicy(capabilitiesJSON); err != nil {
+		return err
+	}
 	payload, ok := parseCapabilities(capabilitiesJSON)
 	if !ok {
 		return nil

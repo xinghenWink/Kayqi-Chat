@@ -1,0 +1,41 @@
+# 单实例轻量配置。动态积分规则、图片能力和价格在管理后台配置。
+app:
+  name: Kayqi Chat
+  env: prod
+
+server:
+  http_port: "8080"
+  # 修改为实际域名；非 8080 的本机静态前端需要在构建时指定 NEXT_PUBLIC_API_BASE_URL。
+  cors_allow_origin: "https://chat.example.com"
+  public_api_base_url: "https://chat.example.com"
+  public_web_base_url: "https://chat.example.com"
+  frontend_dist_dir: "/app/frontend/out"
+
+security:
+  # 两个值都必须替换为独立的随机密钥，并与备份一起妥善保管。
+  jwt_secret: "change-me-generate-at-least-32-random-characters"
+  data_encryption_key: "change-me-generate-another-32-random-characters"
+  ssrf_protection_enabled: true
+
+database:
+  driver: sqlite
+  sqlite:
+    path: /app/data/kayqi.db
+    max_open_conns: 1
+    busy_timeout_ms: 10000
+    cache_size_kb: 8192
+    mmap_size_bytes: 67108864
+    # 积分和附件共享事务，FULL 同时保证已提交流水的持久性。
+    synchronous: FULL
+    temp_store: MEMORY
+
+cache:
+  driver: memory
+
+storage:
+  backend: local
+  local:
+    root_dir: /app/storage
+
+geoip:
+  provider: none

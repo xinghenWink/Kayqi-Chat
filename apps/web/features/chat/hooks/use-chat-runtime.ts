@@ -99,6 +99,7 @@ export function useChatRuntime({
   uiComponentIDs,
   htmlVisualPromptEnabled,
   options,
+  pointQuoteFingerprint,
   draft,
   attachments,
   maxFilesPerMessage,
@@ -137,6 +138,7 @@ export function useChatRuntime({
   uiComponentIDs: number[];
   htmlVisualPromptEnabled: boolean;
   options: ConversationOptions;
+  pointQuoteFingerprint?: string;
   draft: string;
   attachments: PendingAttachment[];
   maxFilesPerMessage: number;
@@ -218,6 +220,7 @@ export function useChatRuntime({
     uiComponentIDs,
     htmlVisualPromptEnabled,
     options,
+  pointQuoteFingerprint,
     draft,
     attachments,
     maxFilesPerMessage,

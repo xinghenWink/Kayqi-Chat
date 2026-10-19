@@ -38,6 +38,9 @@ const accessTokenSessionClockSkew = 2 * time.Minute
 
 // Service 封装认证业务能力。
 type Service struct {
+	pointSignup interface {
+		SignupBonus(context.Context) (*int64, error)
+	}
 	cfg                  *config.Runtime
 	repo                 repository.AuthRepository
 	geoResolver          GeoResolver

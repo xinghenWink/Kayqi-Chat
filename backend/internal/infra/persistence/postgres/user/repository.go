@@ -14,6 +14,7 @@ import (
 	domainuser "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/user"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/dberror"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/models"
+	pointsrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/points"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/repository"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -540,6 +541,11 @@ func (r *Repo) createWithCredentialTx(tx *gorm.DB, input repository.CreateWithCr
 	dbUser := toModelUser(input.User)
 	if err := tx.Create(dbUser).Error; err != nil {
 		return translateError(err)
+	}
+	if input.SignupPoints != nil {
+		if err := pointsrepo.InitializeSignupTx(tx, dbUser.ID, *input.SignupPoints, time.Now()); err != nil {
+			return err
+		}
 	}
 	input.User.ID = dbUser.ID
 	input.User.CreatedAt = dbUser.CreatedAt

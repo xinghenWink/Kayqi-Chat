@@ -31,6 +31,7 @@ import (
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/memory"
 	appstorage "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/objectstorage"
 	apppersonalprovider "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/personalprovider"
+	apppoints "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/points"
 	appprocessing "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/processing"
 	apppromptpreset "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/promptpreset"
 	apprag "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/rag"
@@ -76,6 +77,7 @@ import (
 	mcprepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/mcp"
 	memoryrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/memory"
 	personalproviderrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/personalprovider"
+	pointsrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/points"
 	promptpresetrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/promptpreset"
 	secretrotationrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/secretrotation"
 	settingsrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/settings"
@@ -99,6 +101,7 @@ import (
 	mcphttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/mcp"
 	memoryhttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/memory"
 	personalproviderhttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/personalprovider"
+	pointshttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/points"
 	promptpresethttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/promptpreset"
 	settingshttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/settings"
 	skillhttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/skill"
@@ -286,6 +289,8 @@ func NewAppWithOptions(opts Options) (*App, error) {
 		}
 	}
 
+	pointRepository := pointsrepo.NewRepo(db)
+	pointsService := apppoints.NewService(pointRepository, settingsRepo)
 	userRepo := userrepo.NewRepo(db)
 	userService := user.NewService(userRepo)
 	billingRepo := billingrepo.NewRepo(db)
@@ -349,6 +354,9 @@ func NewAppWithOptions(opts Options) (*App, error) {
 	authService.SetProviderAuthBridge(cacheBackend.ProviderAuthBridge())
 	authService.SetObjectStoreProvider(objectStoreProvider)
 	authService.SetAuditWriter(auditService)
+	if cfg.Capabilities().Enabled("billingGating") {
+		authService.SetPointSignupProvider(pointsService)
+	}
 	settingsService.SetAuthSafetyService(authService)
 	authService.SetSubscriptionResolver(billingService)
 	var bootstrapSuperAdmin *auth.BootstrapSuperAdmin
@@ -457,6 +465,12 @@ func NewAppWithOptions(opts Options) (*App, error) {
 		Logger:                   log,
 	})
 	conversationService.SetBillingService(billingService)
+	var pointsModule *pointshttp.Module
+	if cfg.Capabilities().Enabled("billingGating") {
+		conversationService.SetPointsService(pointsService)
+		pointRepository.SetActiveChecker(conversationService.HasActiveMessageGeneration)
+		pointsModule = pointshttp.NewModule(pointsService, conversationService, auditService)
+	}
 	conversationService.SetAuditWriter(auditService)
 	conversationService.SetObjectStoreProvider(objectStoreProvider)
 	conversationService.SetMCPRepository(mcpRepo)
@@ -550,6 +564,7 @@ func NewAppWithOptions(opts Options) (*App, error) {
 		MCP:               mcpModule,
 		Memory:            memoryModule,
 		Billing:           billingModule,
+		Points:            pointsModule,
 		Admin:             adminModule,
 		ContentModeration: contentModerationModule,
 		Announcement:      announcementModule,
@@ -578,6 +593,26 @@ func NewAppWithOptions(opts Options) (*App, error) {
 	}
 
 	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
+	if pointsModule != nil {
+		// 对账仅处理失去租约的任务，不重发上游生成请求。
+		go func() {
+			ticker := time.NewTicker(time.Minute)
+			defer ticker.Stop()
+			for {
+				if err := pointsService.Reconcile(backgroundCtx); err != nil && backgroundCtx.Err() == nil {
+					log.Error("image_point_reconciliation_failed", zap.Error(err))
+				}
+				if err := conversationService.CleanupUndeliveredImageFiles(backgroundCtx); err != nil && backgroundCtx.Err() == nil {
+					log.Error("image_pending_cleanup_failed", zap.Error(err))
+				}
+				select {
+				case <-backgroundCtx.Done():
+					return
+				case <-ticker.C:
+				}
+			}
+		}()
+	}
 	if _, reconcileErr := embeddingService.ReconcileIndex(backgroundCtx); reconcileErr != nil {
 		log.Warn("embedding index reconciliation failed", zap.Error(reconcileErr))
 	}

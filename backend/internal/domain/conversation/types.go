@@ -205,6 +205,11 @@ type Message struct {
 	ReasoningEffort          *string
 	LatencyMS                int64
 	BilledCurrency           string
+	PointsSpent              int64
+	PointsDelivered          int
+	PointsRequested          int
+	PointsStatus             string
+	PointsOptionsJSON        string
 	BilledNanousd            int64
 	PricingSnapshot          string
 	Status                   string
@@ -276,6 +281,7 @@ type FileObject struct {
 	FileID                 string
 	UserID                 uint
 	Purpose                string
+	GenerationRunID        string
 	FileName               string
 	MimeType               string
 	DetectedMIME           string
@@ -414,7 +420,19 @@ type StorageQuota struct {
 }
 
 // Run 表示对话运行日志。
+// ImagePointSummary 是消息和任务共用的独立积分摘要。
+type ImagePointSummary struct {
+	Model     string
+	TaskType  string
+	Options   map[string]any
+	Spent     int64
+	Delivered int
+	Requested int
+	Status    string
+}
+
 type Run struct {
+	Points             *ImagePointSummary
 	ID                 uint
 	RunID              string
 	RequestID          string
@@ -457,6 +475,7 @@ type Run struct {
 
 // RunStatus 表示用于状态同步的最小运行快照。
 type RunStatus struct {
+	Points *ImagePointSummary
 	RunID  string
 	Status string
 	// RequestID 是发起该 run 的 HTTP 请求 ID，用于把续传等后续请求关联回原始请求的日志。

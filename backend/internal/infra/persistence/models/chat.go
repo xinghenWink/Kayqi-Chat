@@ -130,6 +130,11 @@ type Message struct {
 	ReasoningEffort          *string    `gorm:"size:16;comment:生效的规范推理档位(模型无推理能力时为空)"`
 	LatencyMS                int64      `gorm:"not null;default:0;comment:消息处理时长毫秒"`
 	BilledCurrency           string     `gorm:"size:16;not null;default:'USD';comment:消息计费币种"`
+	PointsSpent              int64      `gorm:"not null;default:0;comment:图片积分消费"`
+	PointsDelivered          int        `gorm:"not null;default:0"`
+	PointsRequested          int        `gorm:"not null;default:0"`
+	PointsStatus             string     `gorm:"not null;default:'';size:32"`
+	PointsOptionsJSON        string     `gorm:"type:text;not null;default:'';comment:图片有效配置快照"`
 	BilledNanousd            int64      `gorm:"not null;default:0;comment:消息计费金额(纳美元)"`
 	PricingSnapshot          string     `gorm:"type:text;not null;default:'';comment:消息计费快照JSON"`
 	Status                   string     `gorm:"size:32;not null;default:'';index:idx_chat_messages_status;comment:消息处理状态"`
@@ -196,6 +201,7 @@ type FileObject struct {
 	FileID                 string     `gorm:"size:64;not null;default:'';uniqueIndex:idx_file_objects_file_id;comment:文件对象ID"`
 	UserID                 uint       `gorm:"not null;default:0;index:idx_file_objects_user_id;comment:所属用户ID，平台文件为0"`
 	Purpose                string     `gorm:"size:32;not null;default:'';comment:文件用途"`
+	GenerationRunID        string     `gorm:"size:128;not null;default:'';index;comment:生成任务ID，用于回收未交付文件"`
 	FileName               string     `gorm:"size:255;not null;default:'';comment:文件名"`
 	MimeType               string     `gorm:"size:128;not null;default:'';comment:客户端声明媒体类型"`
 	DetectedMIME           string     `gorm:"size:128;not null;default:'';index:idx_file_objects_detected_mime;comment:后端探测媒体类型"`

@@ -33,6 +33,8 @@ export type QueuedChatSubmission = BranchScope & {
   attachments: PendingAttachment[];
   platformModelName: string;
   options: ConversationOptions;
+  pointQuoteFingerprint?: string;
+  modelOption?: import("@/features/chat/types/chat-runtime").ChatModelOption;
   selectedToolIDs: number[];
   selectedSkills: SkillSummaryDTO[];
   selectedKnowledgeBaseIDs: string[];

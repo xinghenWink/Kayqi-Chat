@@ -160,6 +160,7 @@ func (s *Service) StreamTemporaryChat(
 		CatalogReasoning:      route.CatalogReasoning,
 		Controls:              input.Controls,
 	})
+	filteredOptions = s.textOnlyCallOptions(filteredOptions)
 	filteredOptions = stripTemporaryChatProviderStateOptions(filteredOptions)
 	var moderationCoord *appcm.RunCoordinator
 	if s.moderationSvc != nil {

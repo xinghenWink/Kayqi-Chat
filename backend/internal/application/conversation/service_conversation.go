@@ -624,7 +624,18 @@ func (s *Service) ListConversationRunsByRunIDs(
 	if _, err := s.repo.GetConversationByUser(ctx, conversationID, userID); err != nil {
 		return nil, ErrConversationNotFound
 	}
-	return s.repo.ListConversationRunsByRunIDs(ctx, userID, conversationID, runIDs)
+	rows, err := s.repo.ListConversationRunsByRunIDs(ctx, userID, conversationID, runIDs)
+	if err != nil {
+		return nil, err
+	}
+	summaries, err := s.pointSummaries(ctx, userID, runIDs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		rows[i].Points = summaries[rows[i].RunID]
+	}
+	return rows, nil
 }
 
 // ListConversationRunStatusesByRunIDs 批量查询当前用户的运行状态。
@@ -649,7 +660,18 @@ func (s *Service) ListConversationRunStatusesByRunIDs(
 	if len(normalized) == 0 {
 		return nil, nil
 	}
-	return s.repo.ListConversationRunStatusesByRunIDs(ctx, userID, normalized)
+	rows, err := s.repo.ListConversationRunStatusesByRunIDs(ctx, userID, normalized)
+	if err != nil {
+		return nil, err
+	}
+	summaries, err := s.pointSummaries(ctx, userID, normalized)
+	if err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		rows[i].Points = summaries[rows[i].RunID]
+	}
+	return rows, nil
 }
 
 func normalizeRecentMessageLimit(limit int) int {

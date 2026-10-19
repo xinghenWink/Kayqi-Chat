@@ -151,6 +151,22 @@ definitions:
     required:
     - fileIDs
     type: object
+  AdjustmentRequest:
+    properties:
+      delta:
+        type: integer
+      reason:
+        maxLength: 255
+        type: string
+      refNo:
+        maxLength: 100
+        minLength: 8
+        type: string
+    required:
+    - delta
+    - reason
+    - refNo
+    type: object
   AdminAnnouncementListResponseDoc:
     properties:
       data:
@@ -2705,6 +2721,8 @@ definitions:
     type: object
   ConversationRunStatusResponse:
     properties:
+      points:
+        $ref: '#/definitions/MessagePointSummaryResponse'
       runID:
         type: string
       status:
@@ -5027,6 +5045,9 @@ definitions:
         type: string
       prompt:
         type: string
+      quoteFingerprint:
+        maxLength: 64
+        type: string
       sourceMessagePublicID:
         maxLength: 32
         type: string
@@ -5234,6 +5255,31 @@ definitions:
       state:
         type: string
     type: object
+  MessagePointSummaryResponse:
+    properties:
+      delivered:
+        type: integer
+      model:
+        type: string
+      options:
+        additionalProperties: {}
+        type: object
+      requested:
+        type: integer
+      spent:
+        type: integer
+      status:
+        type: string
+      taskType:
+        type: string
+    required:
+    - delivered
+    - model
+    - requested
+    - spent
+    - status
+    - taskType
+    type: object
   MessageProcessTraceDetailResponse:
     properties:
       processTrace:
@@ -5418,6 +5464,8 @@ definitions:
         type: string
       platformModelName:
         type: string
+      points:
+        $ref: '#/definitions/MessagePointSummaryResponse'
       processTrace:
         $ref: '#/definitions/MessageProcessTraceResponse'
       publicID:
@@ -7589,6 +7637,116 @@ definitions:
     - data
     - errorMsg
     type: object
+  Policy:
+    properties:
+      concurrentGlobal:
+        type: integer
+      concurrentPerUser:
+        type: integer
+      dailyBonus:
+        type: integer
+      enabled:
+        type: boolean
+      maxCount:
+        type: integer
+      maxReferenceImages:
+        type: integer
+      signupBonus:
+        type: integer
+    required:
+    - concurrentGlobal
+    - concurrentPerUser
+    - dailyBonus
+    - enabled
+    - maxCount
+    - maxReferenceImages
+    - signupBonus
+    type: object
+  Price:
+    properties:
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      model:
+        type: string
+      pointsPerImage:
+        type: integer
+      quality:
+        type: string
+      size:
+        type: string
+      taskType:
+        type: string
+      version:
+        type: integer
+    required:
+    - enabled
+    - id
+    - model
+    - pointsPerImage
+    - quality
+    - size
+    - taskType
+    - version
+    type: object
+  PriceListResponseDoc:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/Price'
+        type: array
+      errorMsg:
+        type: string
+    required:
+    - data
+    - errorMsg
+    type: object
+  PriceRequest:
+    properties:
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      model:
+        maxLength: 128
+        type: string
+      pointsPerImage:
+        maximum: 1000000000
+        minimum: 0
+        type: integer
+      quality:
+        maxLength: 32
+        type: string
+      size:
+        maxLength: 32
+        type: string
+      taskType:
+        enum:
+        - image_generation
+        - image_edit
+        type: string
+      version:
+        type: integer
+    required:
+    - enabled
+    - model
+    - pointsPerImage
+    - quality
+    - size
+    - taskType
+    - version
+    type: object
+  PriceResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/Price'
+      errorMsg:
+        type: string
+    required:
+    - data
+    - errorMsg
+    type: object
   PromptPresetDataResponse:
     properties:
       promptPreset:
@@ -8307,6 +8465,64 @@ definitions:
     - updatedAt
     - upstreamModelName
     type: object
+  Quote:
+    properties:
+      count:
+        type: integer
+      fingerprint:
+        type: string
+      model:
+        type: string
+      options:
+        additionalProperties: {}
+        type: object
+      price:
+        $ref: '#/definitions/Price'
+      taskType:
+        type: string
+      totalPoints:
+        type: integer
+    required:
+    - count
+    - fingerprint
+    - model
+    - options
+    - price
+    - taskType
+    - totalPoints
+    type: object
+  QuoteRequest:
+    properties:
+      fileIDs:
+        items:
+          type: string
+        maxItems: 16
+        type: array
+      model:
+        maxLength: 128
+        type: string
+      options:
+        additionalProperties: {}
+        type: object
+      taskType:
+        enum:
+        - image_generation
+        - image_edit
+        type: string
+    required:
+    - model
+    - taskType
+    type: object
+  QuoteResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/Quote'
+      errorMsg:
+        type: string
+    required:
+    - data
+    - errorMsg
+    type: object
   RedeemCodeRequest:
     properties:
       code:
@@ -8682,6 +8898,77 @@ definitions:
     required:
     - servers
     type: object
+  Reservation:
+    properties:
+      conversationID:
+        type: integer
+      createdAt:
+        type: string
+      dailyDate:
+        type: string
+      deliveredCount:
+        type: integer
+      expiresAt:
+        type: string
+      quoteJSON:
+        type: string
+      requestHash:
+        type: string
+      requestedCount:
+        type: integer
+      reservedDaily:
+        type: integer
+      reservedPermanent:
+        type: integer
+      runID:
+        type: string
+      settledAt:
+        type: string
+      spentPoints:
+        type: integer
+      status:
+        type: string
+      userID:
+        type: integer
+    required:
+    - conversationID
+    - createdAt
+    - dailyDate
+    - deliveredCount
+    - expiresAt
+    - quoteJSON
+    - requestHash
+    - requestedCount
+    - reservedDaily
+    - reservedPermanent
+    - runID
+    - settledAt
+    - spentPoints
+    - status
+    - userID
+    type: object
+  ReservationPage:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/Reservation'
+        type: array
+      total:
+        type: integer
+    required:
+    - results
+    - total
+    type: object
+  ReservationResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/ReservationPage'
+      errorMsg:
+        type: string
+    required:
+    - data
+    - errorMsg
+    type: object
   ResetUpstreamCircuitResponseDoc:
     properties:
       data:
@@ -8836,6 +9123,8 @@ definitions:
         type: integer
       platformModelName:
         type: string
+      points:
+        $ref: '#/definitions/MessagePointSummaryResponse'
       provider:
         type: string
       providerProtocol:
@@ -9816,6 +10105,65 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/ToolResponse'
+      errorMsg:
+        type: string
+    required:
+    - data
+    - errorMsg
+    type: object
+  Transaction:
+    properties:
+      actorID:
+        type: integer
+      createdAt:
+        type: string
+      dailyDate:
+        type: string
+      dailyDelta:
+        type: integer
+      id:
+        type: integer
+      permanentDelta:
+        type: integer
+      reason:
+        type: string
+      refNo:
+        type: string
+      runID:
+        type: string
+      type:
+        type: string
+      userID:
+        type: integer
+    required:
+    - actorID
+    - createdAt
+    - dailyDate
+    - dailyDelta
+    - id
+    - permanentDelta
+    - reason
+    - refNo
+    - runID
+    - type
+    - userID
+    type: object
+  TransactionPage:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/Transaction'
+        type: array
+      total:
+        type: integer
+    required:
+    - results
+    - total
+    type: object
+  TransactionResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/TransactionPage'
       errorMsg:
         type: string
     required:
@@ -11979,6 +12327,41 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/UserSettingsResponse'
+      errorMsg:
+        type: string
+    required:
+    - data
+    - errorMsg
+    type: object
+  Wallet:
+    properties:
+      dailyDate:
+        type: string
+      dailyPoints:
+        type: integer
+      frozenPoints:
+        type: integer
+      permanentPoints:
+        type: integer
+      policy:
+        $ref: '#/definitions/Policy'
+      totalPoints:
+        type: integer
+      userID:
+        type: integer
+    required:
+    - dailyDate
+    - dailyPoints
+    - frozenPoints
+    - permanentPoints
+    - policy
+    - totalPoints
+    - userID
+    type: object
+  WalletResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/Wallet'
       errorMsg:
         type: string
     required:
@@ -16594,6 +16977,144 @@ paths:
       summary: 管理员设置权限组用户
       tags:
       - admin
+  /admin/points/prices:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/PriceListResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: 查询图片积分价格
+      tags:
+      - admin-points
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 图片价格
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/PriceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/PriceResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: 创建或按版本更新图片价格
+      tags:
+      - admin-points
+  /admin/points/reservations:
+    get:
+      parameters:
+      - description: 用户ID
+        in: query
+        name: user_id
+        type: integer
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ReservationResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: 管理员查询图片任务预留及结算
+      tags:
+      - admin-points
+  /admin/points/transactions:
+    get:
+      parameters:
+      - description: 用户ID
+        in: query
+        name: user_id
+        type: integer
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TransactionResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: 管理员查询积分流水
+      tags:
+      - admin-points
+  /admin/points/users/{id}:
+    get:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WalletResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: 管理员查询用户钱包
+      tags:
+      - admin-points
+  /admin/points/users/{id}/adjust:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 积分增减
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/AdjustmentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WalletResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: 幂等调整用户永久积分并记录原因
+      tags:
+      - admin-points
   /admin/prompt-presets:
     get:
       consumes:
@@ -22762,6 +23283,80 @@ paths:
       summary: 查询可用模型目录
       tags:
       - llm
+  /points/daily-grants/ensure:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WalletResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: 幂等领取上海时区当日积分
+      tags:
+      - points
+  /points/image-quote:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 图片配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/QuoteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/QuoteResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: 根据后端有效参数报价
+      tags:
+      - points
+  /points/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WalletResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: 查询当前积分钱包
+      tags:
+      - points
+  /points/transactions:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TransactionResponseDoc'
+      security:
+      - BearerAuth: []
+      summary: 查询当前用户积分流水
+      tags:
+      - points
   /prompt-presets:
     get:
       consumes:

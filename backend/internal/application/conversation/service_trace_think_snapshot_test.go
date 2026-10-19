@@ -164,6 +164,8 @@ func TestThinkSnapshotUsesFreshStartedAtPerRound(t *testing.T) {
 	firstEventID := recorder.upstreamThink.eventID
 
 	recorder.completeUpstreamThink()
+	// 跨平台时钟分辨率不同，间隔一毫秒后再验证下一轮时间。
+	time.Sleep(time.Millisecond)
 	recorder.appendUpstreamReasoning(messageTraceThinkKindContent, "第二轮思考", nil)
 	// 第二轮首段内容落在上一轮 completion 的 live flush 窗口内不会自动落快照，强制 flush 一次。
 	recorder.flushUpstreamThinkLiveUpdate(recorder.upstreamThink, upstreamThinkLiveUpdateOptions{Force: true, PersistSnapshot: true})

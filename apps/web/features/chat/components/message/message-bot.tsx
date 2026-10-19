@@ -164,6 +164,7 @@ type ChatMessageBotProps = {
   billingDisplayUsdToCnyRate?: number | null;
   readOnly?: boolean;
   attachmentContentLoader?: FileContentLoader;
+  onReuseImageConfiguration?: (message: ChatAreaMessage) => void;
   onEditImageAttachment?: (attachment: MessageAttachment, sourceModelName?: string) => void;
   onExtendVideoAttachment?: (attachment: MessageAttachment, sourceModelName?: string) => void;
   artifactActions?: MarkdownArtifactActions;
@@ -201,6 +202,7 @@ export function ChatMessageBot({
   billingDisplayUsdToCnyRate = null,
   readOnly = false,
   attachmentContentLoader,
+  onReuseImageConfiguration,
   onEditImageAttachment,
   onExtendVideoAttachment,
   artifactActions,
@@ -211,6 +213,7 @@ export function ChatMessageBot({
 }: ChatMessageBotProps) {
   const tCommon = useTranslations("common.actions");
   const submitT = useTranslations("chat.submit");
+  const tPoints = useTranslations("chat.points");
   const [isEditing, setIsEditing] = React.useState(false);
   const [editingValue, setEditingValue] = React.useState(item.content);
   // Some IMEs end the composition before the Enter keydown arrives, so the state is tracked too.
@@ -344,7 +347,8 @@ export function ChatMessageBot({
     editableImageAttachments.length,
     getEditableImageAttachment,
     item.platformModelName,
-    onEditImageAttachment,
+    onReuseImageConfiguration,
+  onEditImageAttachment,
     readOnly,
   ]);
   const processAutoCollapseReady = Boolean(hasTraceBlocks || hasStreamdownContent || item.inlineAlert);
@@ -504,6 +508,10 @@ export function ChatMessageBot({
         streaming={messageStreaming}
       />
 
+      {item.points ? <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
+        <span>{tPoints("settled", { count: item.points.delivered, requested: item.points.requested, points: item.points.spent })}</span>
+        {!readOnly && item.points.options && onReuseImageConfiguration ? <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => onReuseImageConfiguration(item)}>{tPoints("reuseConfiguration")}</Button> : null}
+      </div> : null}
       <AssistantMessageMeta
         item={item}
         busy={busy}

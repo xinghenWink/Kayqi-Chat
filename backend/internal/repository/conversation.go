@@ -10,6 +10,7 @@ import (
 // 上传、压缩、embedding、处理流水线与 RAG 各自持有独立仓储接口，由组合根装配；
 // 这里只嵌入 conversation 自身用到的能力，其中 UploadRepository 同时服务于构造函数内部装配的上传服务。
 type ConversationRepository interface {
+	ListUndeliveredGeneratedFiles(ctx context.Context) ([]domainconversation.FileObject, error)
 	ConversationMetadataRepository
 	ConversationForkRepository
 	MessageRepository

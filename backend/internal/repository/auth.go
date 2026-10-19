@@ -21,6 +21,8 @@ type AuthEventInput struct {
 
 // CreateWithCredentialInput 描述原子创建用户、凭据与订阅的输入。
 type CreateWithCredentialInput struct {
+	// SignupPoints 仅由自助注册传入，nil 表示不赠送注册奖励。
+	SignupPoints        *int64
 	User                *domainuser.User
 	Credential          domainuser.Credential
 	SubscriptionPlanID  uint

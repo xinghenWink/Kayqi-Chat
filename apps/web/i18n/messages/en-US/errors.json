@@ -571,5 +571,19 @@
     "upstreamUnavailable": "Couldn’t reach the provider. Check the address and protocol.",
     "modelUnavailable": "This model is unavailable. Check your custom providers or choose another model.",
     "duplicate": "This API key has already been added."
+  },
+  "points": {
+    "disabled": "Image generation is unavailable",
+    "insufficient": "Insufficient points. Claim today's allowance or contact an administrator.",
+    "price_missing": "This image configuration has no price. Choose another configuration or model.",
+    "price_changed": "The price or parameters changed. Refresh your selection and retry.",
+    "quote_required": "Wait for the quote before sending",
+    "invalid_request": "This image configuration is unavailable",
+    "policy_invalid": "Image generation is unavailable. Contact an administrator.",
+    "request_conflict": "This task already exists. Refresh to view it.",
+    "concurrent_limit": "Image generation is busy. Please retry later.",
+    "unavailable": "The points quote is unavailable. Please retry later.",
+    "interrupted": "Image generation was interrupted; undelivered points were released.",
+    "not_found": "Point account not found"
   }
 }

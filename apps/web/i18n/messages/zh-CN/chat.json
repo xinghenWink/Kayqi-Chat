@@ -1183,5 +1183,35 @@
     "increase": "增加",
     "decrease": "减少",
     "empty": "该模型没有可调参数。"
+  },
+  "points": {
+    "modeLabel": "对话模式",
+    "chat": "聊天",
+    "image": "生图",
+    "noImageModel": "暂无可用的生图模型",
+    "noEditModel": "暂无支持图片编辑的模型",
+    "addToEdit": "加入编辑",
+    "balance": "可用 {points} 积分",
+    "walletDetails": "永久 {permanent} · 今日 {daily} · 预留 {frozen}",
+    "quoting": "正在计算积分…",
+    "estimate": "预计 {count} 张 · {points} 积分",
+    "settled": "已交付 {count}/{requested} 张 · 消费 {points} 积分",
+    "errors": {
+      "disabled": "生图暂未开放",
+      "insufficient": "积分不足，请领取每日额度或联系管理员",
+      "price_missing": "此图片配置暂未定价，请更换配置或模型",
+      "price_changed": "价格或参数已更新，请重新选择后发送",
+      "quote_required": "请等待积分报价完成后重试",
+      "invalid_request": "当前图片配置不可用，请更换配置或模型",
+      "policy_invalid": "生图暂不可用，请联系管理员",
+      "request_conflict": "此任务已存在，请刷新查看结果",
+      "concurrent_limit": "图片生成繁忙，请稍后重试",
+      "unavailable": "暂时无法获取积分报价，请稍后重试"
+    },
+    "reuseUnavailable": "原模型或参考图片已不可用，无法复用配置",
+    "reuseConfiguration": "复用配置",
+    "regenerateTitle": "确认重新生成图片",
+    "regenerateDescription": "将按当前价格生成 {count} 张图片，最多预留 {points} 积分。仅对实际交付的图片收费。",
+    "confirmRegenerate": "按当前价格生成"
   }
 }

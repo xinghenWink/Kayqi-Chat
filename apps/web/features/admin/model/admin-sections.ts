@@ -12,6 +12,7 @@ export const ADMIN_SECTIONS = [
   { id: "models", label: "Models", href: "/models" },
   { id: "tools", label: "Tools", href: "/tools" },
   { id: "billing", label: "Billing", href: "/billing" },
+  { id: "points", label: "Image points", href: "/points", feature: "billingGating" },
   { id: "announcements", label: "Announcements", href: "/announcements", feature: "announcements" },
   { id: "logs", label: "Logs", href: "/logs" },
   { id: "content-moderation", label: "Content moderation", href: "/content-moderation", feature: "contentModeration" },
