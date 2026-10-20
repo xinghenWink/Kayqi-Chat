@@ -2,11 +2,9 @@ name: kayqi-chat
 
 services:
   app:
-    # 构建本地开发代码，避免误用尚未包含积分功能的上游镜像。
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    image: kayqi-chat:local
+    # 从本仓库的 GitHub Actions/GHCR 拉取预先构建好的 Kayqi 镜像。
+    # 首次部署前先确认 Actions 的 Image 工作流构建成功。
+    image: ghcr.io/xinghenwink/kayqi-chat:dev-kayqi
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:8080"
