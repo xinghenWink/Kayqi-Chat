@@ -19,6 +19,7 @@ on:
     branches:
       - main
       - dev
+      - dev-kayqi
     tags:
       - "v*.*.*"
   workflow_dispatch:
